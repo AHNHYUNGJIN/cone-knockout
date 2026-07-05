@@ -202,6 +202,7 @@
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      touch-action: none; /* Block default scroll gestures when overlay is up */
     }
 
     .screen-panel.active {
@@ -236,8 +237,10 @@
       line-height: 1.5;
     }
 
+    /* Action buttons: Added touch-action and pointer-events rules */
     .btn {
-      pointer-events: auto;
+      pointer-events: auto !important;
+      touch-action: manipulation;
       background: linear-gradient(135deg, var(--primary), #d01464);
       color: #fff;
       border: none;
@@ -307,6 +310,7 @@
       cursor: pointer;
       transition: all 0.2s ease;
       font-family: inherit;
+      touch-action: manipulation;
     }
 
     .mode-btn.active {
@@ -469,7 +473,8 @@
         <p class="panel-desc">
           모바일 기기에 최적화된 모션 인식 콘 터치 게임입니다. 카메라 앞에 서서 조준점이 가상 콘에 닿도록 손을 뻗으세요!
         </p>
-        <button class="btn" onclick="startGame()">
+        <!-- Added touchstart handler for immediate mobile feedback and preventDefault to stop click eating -->
+        <button class="btn" onclick="startGame(event)" ontouchstart="startGame(event)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
           게임 시작하기
         </button>
@@ -486,10 +491,10 @@
         <p class="panel-desc" id="gameover-combo-txt" style="font-size: 0.85rem; color: var(--accent); margin-bottom: 24px; font-weight: 700;">
           최대 콤보: x0
         </p>
-        <button class="btn" onclick="startGame()">
+        <button class="btn" onclick="startGame(event)" ontouchstart="startGame(event)">
           다시 도전하기
         </button>
-        <button class="btn btn-secondary" onclick="showStartScreen()">
+        <button class="btn btn-secondary" onclick="showStartScreen(event)" ontouchstart="showStartScreen(event)">
           메인 화면으로
         </button>
       </div>
@@ -508,6 +513,7 @@
     let maxCombo = 1;
     let timeRemaining = 45;
     let isPlaying = false;
+    let isTransitioning = false; // Prevent double trigger on touch/click events
     let gameTimer = null;
     let playMode = 'camera'; // 'camera' | 'touch'
     let cameraActive = false;
@@ -638,7 +644,6 @@
       }
     });
 
-    // CRITICAL: modelComplexity set to 0 (Lite) for maximum performance on smartphones/tablets
     hands.setOptions({
       maxNumHands: 1, 
       modelComplexity: 0, 
@@ -655,7 +660,6 @@
       const vWidth = video.videoWidth || 480;
       const vHeight = video.videoHeight || 360;
       
-      // object-fit: cover mapping logic (matching how video is drawn)
       const vRatio = vWidth / vHeight;
       const cRatio = canvasWidth / canvasHeight;
       
@@ -672,15 +676,12 @@
         sx = (vWidth - sWidth) / 2;
       }
       
-      // Convert normalized to source video pixels
       const pixelX = normX * vWidth;
       const pixelY = normY * vHeight;
       
-      // Map to cropped frame and scale to canvas resolution
       const cropX = (pixelX - sx) / sWidth;
       const cropY = (pixelY - sy) / sHeight;
       
-      // Mirror the X coordinate for mirrored feedback
       const mappedX = (1.0 - cropX) * canvasWidth;
       const mappedY = cropY * canvasHeight;
       
@@ -694,33 +695,24 @@
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         const landmarks = results.multiHandLandmarks[0];
         
-        // Multi-point hand tracking for forgiving collision detection:
-        // 1. Index Finger Tip (Landmark 8)
-        // 2. Index Finger Joint (Landmark 5)
-        // 3. Palm/Hand Center (Landmark 9)
+        // Multi-point hand tracking for forgiving collision detection
         const rawTip = mapVideoToCanvas(landmarks[8].x, landmarks[8].y);
         const rawJoint = mapVideoToCanvas(landmarks[5].x, landmarks[5].y);
         const rawPalm = mapVideoToCanvas(landmarks[9].x, landmarks[9].y);
         
-        // Apply Jitter reduction filter only to primary pointer
         pointerX = pointerX + (rawTip.x - pointerX) * filterFactor;
         pointerY = pointerY + (rawTip.y - pointerY) * filterFactor;
         
-        // Primary tracking point (visible cursor)
         trackedPoints.push({ x: pointerX, y: pointerY });
-        
-        // Extra collision points (invisible auxiliary hitboxes)
         trackedPoints.push({ x: rawJoint.x, y: rawJoint.y, aux: true });
         trackedPoints.push({ x: rawPalm.x, y: rawPalm.y, aux: true });
       }
     }
 
-    // Camera initializer (with scaled down resolutions to avoid choking mobile CPU)
     function initCamera() {
       if (cameraHelper) return;
       
       statusText.innerText = "카메라 권한 요청 중...";
-      // 480x360 is the sweet spot resolution for mobile browser inference speed
       cameraHelper = new Camera(video, {
         onFrame: async () => {
           if (playMode === 'camera') {
@@ -778,12 +770,10 @@
       const clickX = clientX - rect.left;
       const clickY = clientY - rect.top;
       
-      // Directly check collision at the precise pixel coordinate
       checkCollision(clickX, clickY);
     }
 
     function checkCollision(x, y) {
-      // Forgiving radius modifier to make hits feel good
       const hitboxMargin = 15;
       
       for (let i = targets.length - 1; i >= 0; i--) {
@@ -873,7 +863,6 @@
       });
     }
 
-    // Larger spawning target sizes on mobile for ease of touch
     function spawnTarget() {
       if (targets.length >= MAX_TARGETS) return;
       
@@ -918,13 +907,27 @@
     }
 
     // Navigation Screens
-    function showStartScreen() {
+    function showStartScreen(e) {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
       gameoverScreen.classList.remove('active');
       startScreen.classList.add('active');
       isPlaying = false;
+      isTransitioning = false;
     }
 
-    function startGame() {
+    function startGame(e) {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      
+      // Stop double activation from concurrent click/touchstart events
+      if (isTransitioning) return;
+      isTransitioning = true;
+
       initAudio();
       startScreen.classList.remove('active');
       gameoverScreen.classList.remove('active');
@@ -945,6 +948,7 @@
         particles = [];
         floatingTexts = [];
         isPlaying = true;
+        isTransitioning = false;
         
         for(let i=0; i < 3; i++) {
           setTimeout(spawnTarget, i * 350);
@@ -988,6 +992,7 @@
 
     function endGame() {
       isPlaying = false;
+      isTransitioning = false;
       clearInterval(gameTimer);
       playSound('gameover');
       
