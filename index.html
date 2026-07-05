@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>콘 녹아웃 프로 (Cone Knockout Pro) - 디버그 모드</title>
+  <title>콘 녹아웃 프로 (Cone Knockout Pro) - 갤럭시 안정화 버전</title>
   
   <!-- Google Fonts & MediaPipe Libraries -->
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
@@ -565,6 +565,13 @@
     let streamActive = false;
     let animationFrameId = null;
     
+    // Asynchronous processing locks (Crucial for preventing OOM memory leak loops on fast processors)
+    let isProcessingFrame = false;
+    
+    // Offscreen Canvas for bypassing Android/Galaxy Chrome WebGL video texture upload crash bug
+    const offscreenCanvas = document.createElement('canvas');
+    const offscreenCtx = offscreenCanvas.getContext('2d');
+    
     // Adaptive LPF variables
     let pointerX = 0;
     let pointerY = 0;
@@ -710,7 +717,6 @@
 
     hands.onResults(onHandResults);
     
-    // Model loaded confirmation
     hands.initialize().then(() => {
       handsReady = true;
       logDebug("MediaPipe model initialized & ready.");
@@ -722,8 +728,10 @@
     function mapVideoToCanvas(normX, normY) {
       const canvasWidth = canvas.width;
       const canvasHeight = canvas.height;
-      const vWidth = video.videoWidth || 640;
-      const vHeight = video.videoHeight || 480;
+      
+      // Map to offscreen canvas dimensions
+      const vWidth = offscreenCanvas.width || 640;
+      const vHeight = offscreenCanvas.height || 480;
       
       const vRatio = vWidth / vHeight;
       const cRatio = canvasWidth / canvasHeight;
@@ -798,7 +806,6 @@
     }
 
     // --- Native HTML5 Webcam Initialization & Frame Looping ---
-    // Modified constraints to support different Android/Galaxy camera sensors without OverconstrainedError
     async function startNativeWebcam() {
       if (cameraActive) return;
       
@@ -821,7 +828,6 @@
         video.setAttribute('muted', '');
         video.setAttribute('playsinline', '');
         
-        // Play command wrapped in promise to handle browser click restrictions
         video.play().then(() => {
           logDebug("Webcam streaming started.");
         }).catch(err => {
@@ -834,6 +840,10 @@
           statusDot.classList.add('active');
           statusText.innerText = "카메라 활성화됨";
           logDebug(`Camera aspect loaded: ${video.videoWidth}x${video.videoHeight}`);
+          
+          // Adjust offscreen canvas dimensions
+          offscreenCanvas.width = video.videoWidth;
+          offscreenCanvas.height = video.videoHeight;
           
           // Trigger manual frame ticking
           streamActive = true;
@@ -850,12 +860,21 @@
     async function tickCameraFrame() {
       if (!streamActive || playMode !== 'camera') return;
       
-      // Guard webcam execution until model is fully compiled & ready
-      if (handsReady && video.readyState === video.HAVE_ENOUGH_DATA) {
+      // Guard frame queuing: do not send frame if previous frame is still processing in WASM thread.
+      // This directly prevents the OOM buffer buildup memory crash on ultra-fast Android devices.
+      if (handsReady && !isProcessingFrame && video.readyState === video.HAVE_ENOUGH_DATA) {
+        isProcessingFrame = true;
+        
+        // Android/Galaxy WebGL hack: Copy video frame to an offscreen canvas and send canvas.
+        // Bypasses the GPU-accelerated texture mapping crash bug in Chrome Android.
+        offscreenCtx.drawImage(video, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
+        
         try {
-          await hands.send({ image: video });
+          await hands.send({ image: offscreenCanvas });
         } catch (e) {
-          // Silent catch to prevent console loop crash
+          logDebug("Hands process error: " + e.message);
+        } finally {
+          isProcessingFrame = false;
         }
       }
       
@@ -1110,11 +1129,12 @@
       });
     }
 
+    // CSS variables translator
     function varColor(cssVar) {
       return getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
     }
 
-    // Screens
+    // Screen navigation
     function showStartScreen(e) {
       if (e) {
         e.preventDefault();
@@ -1295,14 +1315,16 @@
       
       const canvasWidth = canvas.width;
       const canvasHeight = canvas.height;
-      const vWidth = video.videoWidth || 480;
-      const vHeight = video.videoHeight || 360;
-
-      // Draw webcam feed cover
+      
+      // Draw webcam feed from offscreen canvas
       if (playMode === 'camera' && cameraActive) {
         ctx.save();
         ctx.scale(-1, 1);
         ctx.translate(-canvasWidth, 0);
+        
+        // Calculate crop metrics relative to offscreen canvas dimensions
+        const vWidth = offscreenCanvas.width || 640;
+        const vHeight = offscreenCanvas.height || 480;
         
         const vRatio = vWidth / vHeight;
         const cRatio = canvasWidth / canvasHeight;
@@ -1320,7 +1342,8 @@
           sx = (vWidth - sWidth) / 2;
         }
         
-        ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvasWidth, canvasHeight);
+        // Draw the offscreen canvas to main canvas instead of raw video element
+        ctx.drawImage(offscreenCanvas, sx, sy, sWidth, sHeight, 0, 0, canvasWidth, canvasHeight);
         ctx.restore();
         
         ctx.fillStyle = 'rgba(7, 8, 13, 0.55)';
