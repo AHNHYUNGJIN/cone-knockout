@@ -3,11 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>콘 녹아웃 프로 (Cone Knockout Pro) - 세로 모드</title>
+  <title>콘 녹아웃 프로 (Cone Knockout Pro) - 디버그 모드</title>
   
   <!-- Google Fonts & MediaPipe Libraries -->
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
-  <!-- Replaced camera_utils with pure native webcam frame looping -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
   <style>
@@ -61,7 +60,7 @@
     .glow-1 { top: -50px; left: -50px; background-color: var(--primary); }
     .glow-2 { bottom: -50px; right: -50px; background-color: var(--secondary); }
 
-    /* Main Container optimized for portrait */
+    /* Main Container */
     #app-container {
       position: relative;
       width: 100%;
@@ -182,11 +181,10 @@
       object-fit: cover;
     }
 
-    /* Standard video tag configuration for iOS Safari */
     #webcam-video {
       display: none;
-      width: 480px;
-      height: 360px;
+      width: 640px;
+      height: 480px;
     }
 
     /* Panels */
@@ -414,6 +412,27 @@
       pointer-events: none;
       transition: opacity 0.1s ease-out;
     }
+
+    /* Developer Debug Console overlay */
+    #debug-console {
+      position: absolute;
+      bottom: 60px;
+      left: 16px;
+      right: 16px;
+      max-height: 80px;
+      background: rgba(0, 0, 0, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      padding: 8px;
+      font-family: monospace;
+      font-size: 0.65rem;
+      color: #00f0ff;
+      overflow-y: auto;
+      z-index: 9999;
+      pointer-events: auto;
+      display: block;
+      text-align: left;
+    }
   </style>
 </head>
 <body>
@@ -455,9 +474,11 @@
     <!-- Render Area -->
     <div id="game-canvas-container">
       <canvas id="game-canvas"></canvas>
-      <!-- Configure webcam with required attributes for mobile iOS/Android -->
       <video id="webcam-video" autoplay muted playsinline></video>
     </div>
+
+    <!-- Live Developer console -->
+    <div id="debug-console">SYS: System ready. Tap startGame to initialize webcam.</div>
 
     <!-- Status indicator -->
     <div id="status-indicator">
@@ -510,6 +531,16 @@
   </div>
 
   <script>
+    // --- Developer debug console helper ---
+    const debugBox = document.getElementById('debug-console');
+    function logDebug(msg) {
+      console.log("[DEBUG] " + msg);
+      if (debugBox) {
+        debugBox.innerHTML += "<br>▶ " + msg;
+        debugBox.scrollTop = debugBox.scrollHeight;
+      }
+    }
+
     // --- Dynamic Viewport height handler ---
     function updateVH() {
       const vh = window.innerHeight * 0.01;
@@ -565,8 +596,13 @@
     // Web Audio synthesizer
     let audioCtx = null;
     function initAudio() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          logDebug("WebAudio initialized.");
+        }
+      } catch(e) {
+        logDebug("WebAudio fail: " + e.message);
       }
     }
     
@@ -657,8 +693,10 @@
     resizeCanvas();
 
     // --- MediaPipe Hands Setup ---
+    let handsReady = false;
     const hands = new Hands({
       locateFile: (file) => {
+        logDebug(`Loading MP Hands resource: ${file}`);
         return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
       }
     });
@@ -671,13 +709,21 @@
     });
 
     hands.onResults(onHandResults);
+    
+    // Model loaded confirmation
+    hands.initialize().then(() => {
+      handsReady = true;
+      logDebug("MediaPipe model initialized & ready.");
+    }).catch(e => {
+      logDebug("MediaPipe init fail: " + e.message);
+    });
 
     // Aspect-ratio cover mapping logic
     function mapVideoToCanvas(normX, normY) {
       const canvasWidth = canvas.width;
       const canvasHeight = canvas.height;
-      const vWidth = video.videoWidth || 480;
-      const vHeight = video.videoHeight || 360;
+      const vWidth = video.videoWidth || 640;
+      const vHeight = video.videoHeight || 480;
       
       const vRatio = vWidth / vHeight;
       const cRatio = canvasWidth / canvasHeight;
@@ -752,17 +798,17 @@
     }
 
     // --- Native HTML5 Webcam Initialization & Frame Looping ---
-    // This fully bypasses the buggy MediaPipe Camera wrapper on iOS/Android browsers
+    // Modified constraints to support different Android/Galaxy camera sensors without OverconstrainedError
     async function startNativeWebcam() {
       if (cameraActive) return;
       
-      statusText.innerText = "카메라 권한 요청 중...";
+      logDebug("Requesting webcam stream...");
       
       const constraints = {
         video: {
-          width: { ideal: 480 },
-          height: { ideal: 360 },
-          facingMode: 'user'
+          facingMode: 'user',
+          width: { ideal: 640 },
+          height: { ideal: 480 }
         },
         audio: false
       };
@@ -771,23 +817,30 @@
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = stream;
         
-        // Explicit playsinline/autoplay attributes for iOS Safari webview
         video.setAttribute('autoplay', '');
         video.setAttribute('muted', '');
         video.setAttribute('playsinline', '');
-        video.play();
+        
+        // Play command wrapped in promise to handle browser click restrictions
+        video.play().then(() => {
+          logDebug("Webcam streaming started.");
+        }).catch(err => {
+          logDebug("Play promise fail, triggering direct play: " + err.message);
+          video.play();
+        });
         
         video.onloadedmetadata = () => {
           cameraActive = true;
           statusDot.classList.add('active');
           statusText.innerText = "카메라 활성화됨";
+          logDebug(`Camera aspect loaded: ${video.videoWidth}x${video.videoHeight}`);
           
           // Trigger manual frame ticking
           streamActive = true;
           tickCameraFrame();
         };
       } catch (err) {
-        console.error("Native camera access failed:", err);
+        logDebug("Camera stream failed: " + err.name + " (" + err.message + ")");
         statusText.innerText = "카메라 연결 실패 (터치 모드 전환)";
         statusDot.classList.remove('active');
         setPlayMode('touch');
@@ -797,16 +850,15 @@
     async function tickCameraFrame() {
       if (!streamActive || playMode !== 'camera') return;
       
-      // Send frames to MediaPipe model when video buffer has loaded metadata
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      // Guard webcam execution until model is fully compiled & ready
+      if (handsReady && video.readyState === video.HAVE_ENOUGH_DATA) {
         try {
           await hands.send({ image: video });
         } catch (e) {
-          console.warn("Hands engine processing error:", e);
+          // Silent catch to prevent console loop crash
         }
       }
       
-      // Loop requestAnimationFrame for smooth, un-throttled execution on iOS/Android
       animationFrameId = requestAnimationFrame(tickCameraFrame);
     }
 
@@ -821,6 +873,7 @@
       cameraActive = false;
       statusDot.classList.remove('active');
       statusText.innerText = "카메라 꺼짐";
+      logDebug("Webcam stopped.");
     }
 
     function setPlayMode(mode) {
@@ -1245,7 +1298,7 @@
       const vWidth = video.videoWidth || 480;
       const vHeight = video.videoHeight || 360;
 
-      // Draw webcam feed
+      // Draw webcam feed cover
       if (playMode === 'camera' && cameraActive) {
         ctx.save();
         ctx.scale(-1, 1);
