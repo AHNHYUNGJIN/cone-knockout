@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>콘 녹아웃 프로 (Cone Knockout Pro)</title>
+  
+  <!-- Google Fonts & MediaPipe Libraries -->
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+  <style>
+    :root {
+      --bg-dark: #07080d;
+      --panel-bg: rgba(13, 17, 28, 0.7);
+      --panel-border: rgba(255, 255, 255, 0.08);
+      --primary: #ff2a85;       /* Neon Pink */
+      --secondary: #00f0ff;     /* Neon Cyan */
+      --accent: #ffb800;        /* Neon Gold */
+      --danger: #ff3b30;        /* Red Bomb */
+      --text: #f5f6fa;
+      --text-muted: #6e768a;
+      --shadow-color: rgba(0, 240, 255, 0.25);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text);
+      font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Ambient Background Glows */
+    .bg-glow {
+      position: absolute;
+      width: 450px;
+      height: 450px;
+      border-radius: 50%;
+      filter: blur(150px);
+      z-index: 1;
+      opacity: 0.35;
+      pointer-events: none;
+      transition: background-color 0.5s ease;
+    }
+    .glow-1 { top: -100px; left: -100px; background-color: var(--primary); }
+    .glow-2 { bottom: -100px; right: -100px; background-color: var(--secondary); }
+
+    /* Main Container */
+    #app-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-width: 1120px;
+      max-height: 840px;
+      display: flex;
+      flex-direction: column;
+      z-index: 2;
+      background: #0d0f17;
+    }
+
+    @media (min-width: 1025px) {
+      #app-container {
+        height: 92vh;
+        border-radius: 28px;
+        border: 1px solid var(--panel-border);
+        box-shadow: 0 30px 70px rgba(0, 0, 0, 0.6), 0 0 40px rgba(0, 240, 255, 0.05);
+        overflow: hidden;
+      }
+    }
+
+    /* Top Dashboard */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 28px;
+      background: linear-gradient(180deg, rgba(7, 8, 13, 0.95) 0%, rgba(7, 8, 13, 0) 100%);
+      z-index: 10;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+    }
+
+    .brand-section {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .logo {
+      font-weight: 900;
+      font-size: 1.6rem;
+      letter-spacing: -1px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-transform: uppercase;
+    }
+
+    .sub-brand {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-top: -2px;
+    }
+
+    .stats-container {
+      display: flex;
+      gap: 12px;
+    }
+
+    .stat-badge {
+      background: var(--panel-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--panel-border);
+      padding: 10px 18px;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 90px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    .stat-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      margin-bottom: 2px;
+    }
+
+    .stat-value {
+      font-size: 1.4rem;
+      font-weight: 900;
+      color: #fff;
+    }
+
+    .stat-value.score-highlight {
+      color: var(--secondary);
+      text-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+    }
+
+    .stat-value.combo-highlight {
+      color: var(--accent);
+      text-shadow: 0 0 10px rgba(255, 184, 0, 0.4);
+    }
+
+    /* Play Area */
+    #game-canvas-container {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      background-color: #08090e;
+    }
+
+    #game-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Hidden webcam video stream */
+    #webcam-video {
+      display: none;
+    }
+
+    /* Screen overlays (Start, GameOver, Pause) */
+    .screen-panel {
+      position: absolute;
+      inset: 0;
+      background: rgba(7, 8, 13, 0.9);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 32px;
+      text-align: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .screen-panel.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .panel-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 24px;
+      padding: 40px;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    }
+
+    h1.panel-title {
+      font-size: 2.8rem;
+      font-weight: 900;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #fff 40%, #7e879a 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -1.5px;
+    }
+
+    p.panel-desc {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+      line-height: 1.6;
+    }
+
+    /* Interactive Buttons */
+    .btn {
+      pointer-events: auto;
+      background: linear-gradient(135deg, var(--primary), #d01464);
+      color: #fff;
+      border: none;
+      width: 100%;
+      padding: 16px 36px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      border-radius: 16px;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(255, 42, 133, 0.35);
+      transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-family: inherit;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(255, 42, 133, 0.5);
+      filter: brightness(1.1);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--panel-border);
+      box-shadow: none;
+      margin-top: 12px;
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      box-shadow: none;
+      transform: translateY(-2px);
+    }
+
+    /* Mode Selector Top-Right */
+    .mode-switch {
+      position: absolute;
+      top: 100px;
+      right: 28px;
+      z-index: 50;
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--panel-border);
+      padding: 5px;
+      border-radius: 14px;
+      display: flex;
+      pointer-events: auto;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    }
+
+    .mode-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 8px 16px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .mode-btn.active {
+      background: linear-gradient(135deg, var(--secondary), #00b4d8);
+      color: #07080d;
+      box-shadow: 0 4px 12px rgba(0, 240, 255, 0.3);
+    }
+
+    /* Countdown HUD */
+    #ui-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 5;
+    }
+
+    #countdown-txt {
+      font-size: 9rem;
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 0 0 50px rgba(0, 240, 255, 0.7);
+      transform: scale(0.3);
+      opacity: 0;
+      transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      pointer-events: none;
+    }
+
+    #countdown-txt.show {
+      transform: scale(1);
+      opacity: 1;
+    }
+
+    /* Status Indicator Bottom-Left */
+    #status-indicator {
+      position: absolute;
+      bottom: 28px;
+      left: 28px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(7, 8, 13, 0.8);
+      padding: 8px 16px;
+      border-radius: 30px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      border: 1px solid var(--panel-border);
+      z-index: 50;
+      pointer-events: auto;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: var(--danger);
+      box-shadow: 0 0 8px var(--danger);
+    }
+
+    .status-dot.active {
+      background-color: #34c759;
+      box-shadow: 0 0 10px #34c759;
+    }
+
+    /* Guide Badge Bottom-Right */
+    #guide-badge {
+      position: absolute;
+      bottom: 28px;
+      right: 28px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--panel-border);
+      padding: 10px 18px;
+      border-radius: 16px;
+      font-size: 0.85rem;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 50;
+      pointer-events: none;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    }
+
+    .guide-highlight {
+      color: var(--secondary);
+      font-weight: 700;
+    }
+
+    /* Screen Flash FX for Damage/Bomb Hits */
+    #flash-overlay {
+      position: absolute;
+      inset: 0;
+      background-color: var(--danger);
+      opacity: 0;
+      z-index: 4;
+      pointer-events: none;
+      transition: opacity 0.1s ease-out;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg-glow glow-1" id="ambient-glow-1"></div>
+  <div class="bg-glow glow-2" id="ambient-glow-2"></div>
+
+  <div id="app-container">
+    <!-- Screen Flash Overlay -->
+    <div id="flash-overlay"></div>
+
+    <!-- Header Dashboard HUD -->
+    <header>
+      <div class="brand-section">
+        <div class="logo">CONE KNOCKOUT</div>
+        <div class="sub-brand">Motion-sensing Pro Edition</div>
+      </div>
+      <div class="stats-container">
+        <div class="stat-badge">
+          <span class="stat-label">SCORE</span>
+          <span class="stat-value score-highlight" id="score-val">0</span>
+        </div>
+        <div class="stat-badge">
+          <span class="stat-label">COMBO</span>
+          <span class="stat-value combo-highlight" id="combo-val">x1</span>
+        </div>
+        <div class="stat-badge" style="min-width: 75px;">
+          <span class="stat-label">TIME</span>
+          <span class="stat-value" id="time-val">45s</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Top Play Mode Switcher -->
+    <div class="mode-switch">
+      <button class="mode-btn active" id="mode-camera" onclick="setPlayMode('camera')">카메라 모드</button>
+      <button class="mode-btn" id="mode-touch" onclick="setPlayMode('touch')">터치 모드</button>
+    </div>
+
+    <!-- Main Game Render Canvas -->
+    <div id="game-canvas-container">
+      <canvas id="game-canvas"></canvas>
+      <video id="webcam-video" playsinline></video>
+    </div>
+
+    <!-- Status Bar HUD -->
+    <div id="status-indicator">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">카메라 준비 안됨</span>
+    </div>
+
+    <!-- Guide HUD -->
+    <div id="guide-badge">
+      <span id="guide-txt">로딩 중...</span>
+    </div>
+
+    <!-- START SCREEN -->
+    <div class="screen-panel active" id="start-screen">
+      <div class="panel-card">
+        <h1 class="panel-title">CONE KNOCKOUT</h1>
+        <p class="panel-desc">
+          화면에 나타나는 컬러 콘을 쓰러뜨리는 실시간 반응 신경 훈련 게임입니다. 스마트폰/태블릿을 세우고 손으로 허공을 휘둘러 타겟을 터치하세요!
+        </p>
+        <button class="btn" onclick="startGame()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          게임 시작하기
+        </button>
+      </div>
+    </div>
+
+    <!-- GAME OVER SCREEN -->
+    <div class="screen-panel" id="gameover-screen">
+      <div class="panel-card">
+        <h1 class="panel-title" style="background: linear-gradient(135deg, var(--primary) 0%, #a61250 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">FINISH</h1>
+        <p class="panel-desc" id="gameover-score-txt" style="font-size: 1.4rem; font-weight: 900; color: #fff; margin-bottom: 8px;">
+          최종 점수: 0점
+        </p>
+        <p class="panel-desc" id="gameover-combo-txt" style="font-size: 0.95rem; color: var(--accent); margin-bottom: 32px; font-weight: 700;">
+          최대 콤보: x0
+        </p>
+        <button class="btn" onclick="startGame()">
+          다시 도전하기
+        </button>
+        <button class="btn btn-secondary" onclick="showStartScreen()">
+          메인 화면으로
+        </button>
+      </div>
+    </div>
+
+    <!-- HUD Overlay for Countdown -->
+    <div id="ui-overlay">
+      <div id="countdown-txt">3</div>
+    </div>
+  </div>
+
+  <script>
+    // --- Game Settings & Logic variables ---
+    let score = 0;
+    let combo = 1;
+    let maxCombo = 1;
+    let timeRemaining = 45;
+    let isPlaying = false;
+    let gameTimer = null;
+    let playMode = 'camera'; // 'camera' | 'touch'
+    let cameraActive = false;
+    let cameraHelper = null;
+    
+    // Smooth tracking coordinates using low-pass filter (Moving Average)
+    let pointerX = 0;
+    let pointerY = 0;
+    const filterFactor = 0.35; // Lower values = smoother but slower tracking.
+    
+    // Game targets (Cones)
+    let targets = [];
+    const MAX_TARGETS = 4;
+    let nextTargetId = 0;
+    let targetSpawnTimer = 0;
+    
+    // Tracked pointer nodes (Hands/fingers)
+    let trackedPoints = [];
+    
+    // FX lists
+    let particles = [];
+    let floatingTexts = [];
+
+    // Ambient background colors
+    const ambientColors = {
+      normal: { glow1: '#ff2a85', glow2: '#00f0ff' },
+      golden: { glow1: '#ffb800', glow2: '#ff2a85' },
+      danger: { glow1: '#ff3b30', glow2: '#ff8800' }
+    };
+
+    // Audio Synthesizer (Web Audio API)
+    let audioCtx = null;
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }
+    
+    function playSound(type) {
+      if (!audioCtx) return;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      
+      if (type === 'hit-normal') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(350, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(750, audioCtx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.12);
+      } else if (type === 'hit-golden') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+        osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.05); // E5
+        osc.frequency.exponentialRampToValueAtTime(1046.50, audioCtx.currentTime + 0.2); // C6
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.25);
+      } else if (type === 'hit-bomb') {
+        // Deep explosion sound
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 0.4);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.4);
+      } else if (type === 'countdown') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+      } else if (type === 'go') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.35);
+      } else if (type === 'gameover') {
+        // Chord sequence
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+        osc.frequency.setValueAtTime(240, audioCtx.currentTime + 0.15);
+        osc.frequency.setValueAtTime(180, audioCtx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.5);
+      }
+    }
+
+    // --- DOM Elements ---
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    const video = document.getElementById('webcam-video');
+    const scoreVal = document.getElementById('score-val');
+    const comboVal = document.getElementById('combo-val');
+    const timeVal = document.getElementById('time-val');
+    const startScreen = document.getElementById('start-screen');
+    const gameoverScreen = document.getElementById('gameover-screen');
+    const gameoverScoreTxt = document.getElementById('gameover-score-txt');
+    const gameoverComboTxt = document.getElementById('gameover-combo-txt');
+    const countdownTxt = document.getElementById('countdown-txt');
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    const guideTxt = document.getElementById('guide-txt');
+    const flashOverlay = document.getElementById('flash-overlay');
+
+    // --- Canvas Fitting ---
+    function resizeCanvas() {
+      const container = document.getElementById('game-canvas-container');
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // --- MediaPipe Hands Engine Setup ---
+    const hands = new Hands({
+      locateFile: (file) => {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+      }
+    });
+
+    hands.setOptions({
+      maxNumHands: 1, // Focus on single hand tracking for speed and accuracy
+      modelComplexity: 1,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+
+    hands.onResults(onHandResults);
+
+    function onHandResults(results) {
+      if (!isPlaying || playMode !== 'camera') return;
+      
+      trackedPoints = [];
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const landmarks = results.multiHandLandmarks[0];
+        
+        // Track Index Finger Tip (Landmark 8)
+        const rawX = landmarks[8].x * canvas.width;
+        const rawY = landmarks[8].y * canvas.height;
+        
+        // Low-pass filter for smooth motion jitter reduction
+        pointerX = pointerX + (rawX - pointerX) * filterFactor;
+        pointerY = pointerY + (rawY - pointerY) * filterFactor;
+        
+        trackedPoints.push({ x: pointerX, y: pointerY });
+      }
+    }
+
+    // Camera initializer
+    function initCamera() {
+      if (cameraHelper) return;
+      
+      statusText.innerText = "카메라 요청 중...";
+      cameraHelper = new Camera(video, {
+        onFrame: async () => {
+          if (playMode === 'camera') {
+            await hands.send({ image: video });
+          }
+        },
+        width: 640,
+        height: 480
+      });
+      
+      cameraHelper.start()
+        .then(() => {
+          cameraActive = true;
+          statusDot.classList.add('active');
+          statusText.innerText = "카메라 연결됨 (정상)";
+        })
+        .catch(err => {
+          console.error("Camera error: ", err);
+          statusText.innerText = "카메라 인식 불가 (터치 모드 전환)";
+          statusDot.classList.remove('active');
+          setPlayMode('touch');
+        });
+    }
+
+    // Play Mode switching logic
+    function setPlayMode(mode) {
+      playMode = mode;
+      document.getElementById('mode-camera').classList.toggle('active', mode === 'camera');
+      document.getElementById('mode-touch').classList.toggle('active', mode === 'touch');
+      
+      if (mode === 'camera') {
+        guideTxt.innerHTML = "손을 <span class='guide-highlight'>전면 카메라</span>에 대고 조준해 보세요!";
+        initCamera();
+      } else {
+        guideTxt.innerHTML = "화면의 고깔콘을 <span class='guide-highlight'>터치/클릭</span>해서 맞추세요!";
+        trackedPoints = [];
+      }
+    }
+
+    // Default load mode setting
+    setPlayMode('camera');
+
+    // Touch & Mouse event tracking on canvas
+    canvas.addEventListener('mousedown', handleScreenInteraction);
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        handleScreenInteraction(e.changedTouches[i]);
+      }
+    });
+
+    function handleScreenInteraction(e) {
+      if (!isPlaying) return;
+      
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.clientX || e.pageX;
+      const clientY = e.clientY || e.pageY;
+      
+      // Calculate viewport scaled coordinate inside Canvas
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      
+      // Touch coordinates mapping (mirrored if camera is running)
+      const mappedX = (playMode === 'camera' && cameraActive) ? (canvas.width - x) : x;
+      
+      checkCollision(mappedX, y);
+    }
+
+    // Collision system between pointer and targets
+    function checkCollision(x, y) {
+      for (let i = targets.length - 1; i >= 0; i--) {
+        const target = targets[i];
+        const dist = Math.hypot(target.x - x, target.y - y);
+        if (dist < target.radius) {
+          triggerTargetHit(i);
+          break;
+        }
+      }
+    }
+
+    // Trigger target hit
+    function triggerTargetHit(index) {
+      const target = targets[index];
+      
+      if (target.type === 'bomb') {
+        // Bomb hit: penalty
+        playSound('hit-bomb');
+        triggerScreenFlash();
+        createParticles(target.x, target.y, varColor('--danger'), 20);
+        createFloatingText(target.x, target.y, "-15 Combo Break!", varColor('--danger'));
+        
+        // Reset combo, deduct score
+        score = Math.max(0, score - 15);
+        combo = 1;
+        targets.splice(index, 1);
+        spawnTarget();
+      } else {
+        // Normal or Golden hit
+        const isGolden = target.type === 'golden';
+        const baseScore = isGolden ? 30 : 10;
+        const pts = baseScore * combo;
+        score += pts;
+        
+        playSound(isGolden ? 'hit-golden' : 'hit-normal');
+        createParticles(target.x, target.y, target.color, isGolden ? 25 : 12);
+        createFloatingText(target.x, target.y, `+${pts} ${combo > 1 ? combo + 'x Combo!' : ''}`, target.color);
+        
+        // Advance combo metrics
+        combo++;
+        if (combo > maxCombo) maxCombo = combo;
+        
+        targets.splice(index, 1);
+        spawnTarget();
+      }
+      
+      scoreVal.innerText = score;
+      comboVal.innerText = `x${combo}`;
+      
+      // Dynamic ambient color glow shift
+      updateAmbientGlow(target.type);
+    }
+
+    function triggerScreenFlash() {
+      flashOverlay.style.opacity = '0.3';
+      setTimeout(() => {
+        flashOverlay.style.opacity = '0';
+      }, 150);
+    }
+
+    function updateAmbientGlow(type) {
+      const theme = ambientColors[type] || ambientColors.normal;
+      document.getElementById('ambient-glow-1').style.backgroundColor = theme.glow1;
+      document.getElementById('ambient-glow-2').style.backgroundColor = theme.glow2;
+    }
+
+    // Create custom particle burst
+    function createParticles(x, y, color, count) {
+      for (let i = 0; i < count; i++) {
+        const speed = Math.random() * 8 + 4;
+        const angle = Math.random() * Math.PI * 2;
+        particles.push({
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 1,
+          radius: Math.random() * 4 + 2,
+          color: color,
+          alpha: 1,
+          decay: Math.random() * 0.03 + 0.02
+        });
+      }
+    }
+
+    // Create floating score HUD labels
+    function createFloatingText(x, y, text, color) {
+      floatingTexts.push({
+        x: x,
+        y: y,
+        text: text,
+        color: color,
+        alpha: 1,
+        yVelocity: -2,
+        life: 40
+      });
+    }
+
+    // Spawning engine (consecutive dynamic cone creation)
+    function spawnTarget() {
+      if (targets.length >= MAX_TARGETS) return;
+      
+      const margin = 100;
+      const x = Math.random() * (canvas.width - margin * 2) + margin;
+      const y = Math.random() * (canvas.height - margin * 2) + margin;
+      
+      // Deterministic target rolling logic:
+      // Normal Cone (70%), Bomb Cone (20%), Golden Cone (10%)
+      const roll = Math.random();
+      let type = 'normal';
+      let color = varColor('--secondary');
+      let radiusScale = 0.08;
+      let life = null; // Infinite until hit
+      
+      if (roll > 0.90) {
+        type = 'golden';
+        color = varColor('--accent');
+        radiusScale = 0.06; // Golden is smaller and harder to touch
+        life = 3500; // Auto expires in 3.5 seconds
+      } else if (roll > 0.70) {
+        type = 'bomb';
+        color = varColor('--danger');
+        radiusScale = 0.07;
+        life = 6000; // Explodes automatically in 6 seconds
+      }
+      
+      targets.push({
+        id: nextTargetId++,
+        type: type,
+        x: x,
+        y: y,
+        radius: Math.min(canvas.width, canvas.height) * radiusScale,
+        color: color,
+        scale: 0,
+        pulse: 0,
+        spawnTime: Date.now(),
+        lifeLimit: life
+      });
+    }
+
+    function varColor(cssVar) {
+      return getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
+    }
+
+    // Navigation Screens
+    function showStartScreen() {
+      gameoverScreen.classList.remove('active');
+      startScreen.classList.add('active');
+      isPlaying = false;
+    }
+
+    function startGame() {
+      initAudio();
+      startScreen.classList.remove('active');
+      gameoverScreen.classList.remove('active');
+      
+      if (playMode === 'camera' && !cameraActive) {
+        initCamera();
+      }
+
+      runCountdown(3, () => {
+        score = 0;
+        combo = 1;
+        maxCombo = 1;
+        timeRemaining = 45;
+        scoreVal.innerText = score;
+        comboVal.innerText = `x${combo}`;
+        timeVal.innerText = timeRemaining + "s";
+        targets = [];
+        particles = [];
+        floatingTexts = [];
+        isPlaying = true;
+        
+        // Spawn first batch
+        for(let i=0; i < 3; i++) {
+          setTimeout(spawnTarget, i * 400);
+        }
+        
+        startGameTimer();
+      });
+    }
+
+    function runCountdown(sec, callback) {
+      if (sec > 0) {
+        countdownTxt.innerText = sec;
+        countdownTxt.classList.add('show');
+        playSound('countdown');
+        setTimeout(() => {
+          countdownTxt.classList.remove('show');
+          setTimeout(() => runCountdown(sec - 1, callback), 100);
+        }, 800);
+      } else {
+        countdownTxt.innerText = "START!";
+        countdownTxt.classList.add('show');
+        playSound('go');
+        setTimeout(() => {
+          countdownTxt.classList.remove('show');
+          callback();
+        }, 800);
+      }
+    }
+
+    function startGameTimer() {
+      if (gameTimer) clearInterval(gameTimer);
+      gameTimer = setInterval(() => {
+        timeRemaining--;
+        timeVal.innerText = timeRemaining + "s";
+        
+        if (timeRemaining <= 0) {
+          endGame();
+        }
+      }, 1000);
+    }
+
+    function endGame() {
+      isPlaying = false;
+      clearInterval(gameTimer);
+      playSound('gameover');
+      
+      gameoverScoreTxt.innerText = `최종 점수: ${score}점`;
+      gameoverComboTxt.innerText = `최대 콤보: x${maxCombo}`;
+      gameoverScreen.classList.add('active');
+    }
+
+    // --- Vector 3D Cone Renderer on 2D Canvas ---
+    function draw3DCone(ctx, x, y, radius, color, isBomb, isGolden) {
+      ctx.save();
+      
+      // Shadow and Glow setup
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = color;
+      
+      // 1. Draw Cone Base (Oval bottom)
+      ctx.beginPath();
+      ctx.ellipse(x, y + radius * 0.6, radius, radius * 0.35, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.fill();
+      ctx.stroke();
+
+      // 2. Draw Cone Body (Triangle tapering upwards)
+      ctx.beginPath();
+      ctx.moveTo(x - radius * 0.95, y + radius * 0.6);
+      ctx.lineTo(x, y - radius * 0.9); // Tip of cone
+      ctx.lineTo(x + radius * 0.95, y + radius * 0.6);
+      ctx.closePath();
+      
+      // Cone gradient shading
+      const grad = ctx.createLinearGradient(x - radius, y, x + radius, y);
+      if (isGolden) {
+        grad.addColorStop(0, '#cca010');
+        grad.addColorStop(0.3, '#ffd700');
+        grad.addColorStop(0.7, '#fff3a8');
+        grad.addColorStop(1, '#a67c00');
+      } else if (isBomb) {
+        grad.addColorStop(0, '#501010');
+        grad.addColorStop(0.4, '#d62222');
+        grad.addColorStop(0.7, '#ff5c5c');
+        grad.addColorStop(1, '#501010');
+      } else {
+        grad.addColorStop(0, '#006c7a');
+        grad.addColorStop(0.4, '#00f0ff');
+        grad.addColorStop(0.7, '#e6ffff');
+        grad.addColorStop(1, '#004c57');
+      }
+      ctx.fillStyle = grad;
+      ctx.fill();
+      
+      // 3. Inner details / Stripe highlights
+      ctx.beginPath();
+      ctx.moveTo(x - radius * 0.45, y + radius * 0.1);
+      ctx.lineTo(x, y - radius * 0.3);
+      ctx.lineTo(x + radius * 0.45, y + radius * 0.1);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      
+      // 4. Specific emblems on top of the cones
+      if (isBomb) {
+        // Draw skull or X mark in the center of the bomb cone
+        ctx.beginPath();
+        ctx.moveTo(x - 10, y + 10); ctx.lineTo(x + 10, y + 30);
+        ctx.moveTo(x + 10, y + 10); ctx.lineTo(x - 10, y + 30);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+      } else if (isGolden) {
+        // Draw star or high-score icon above the Golden cone
+        ctx.beginPath();
+        ctx.arc(x, y - radius * 0.9, 10, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = '#fff';
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    // --- Main Game Render & Physics update loop (60fps) ---
+    function gameLoop() {
+      requestAnimationFrame(gameLoop);
+      
+      // Clear screen Canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // 1. Draw webcam mirrored background
+      if (playMode === 'camera' && cameraActive) {
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.translate(-canvas.width, 0);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        
+        // Deep contrast overlay
+        ctx.fillStyle = 'rgba(7, 8, 13, 0.55)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      } else {
+        // Matrix style dark cyber grid background
+        ctx.fillStyle = '#08090e';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.03)';
+        ctx.lineWidth = 1;
+        const grid = 50;
+        for (let x = 0; x < canvas.width; x += grid) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height);
+          ctx.stroke();
+        }
+        for (let y = 0; y < canvas.height; y += grid) {
+          ctx.beginPath();
+          ctx.moveTo(0, y); ctx.lineTo(canvas.width, y);
+          ctx.stroke();
+        }
+      }
+
+      if (isPlaying) {
+        // 2. Camera Motion Tracking update
+        if (playMode === 'camera' && cameraActive && trackedPoints.length > 0) {
+          const pt = trackedPoints[0];
+          
+          // Perform collision check in camera tracking
+          checkCollision(pt.x, pt.y);
+          
+          // Draw Neon pointer reticle (Crosshair)
+          ctx.save();
+          ctx.shadowBlur = 15;
+          ctx.shadowColor = varColor('--secondary');
+          
+          // Outer Ring
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, 20 + Math.sin(Date.now() * 0.015) * 4, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.8)';
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          
+          // Center Core
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, 6, 0, Math.PI * 2);
+          ctx.fillStyle = '#fff';
+          ctx.fill();
+          
+          ctx.restore();
+        }
+
+        // 3. Manage Cones & Draw
+        const now = Date.now();
+        for (let i = targets.length - 1; i >= 0; i--) {
+          const target = targets[i];
+          
+          // Check target auto-expiry
+          if (target.lifeLimit && (now - target.spawnTime > target.lifeLimit)) {
+            // Auto explode target (Bomb or Golden expires)
+            targets.splice(i, 1);
+            spawnTarget();
+            continue;
+          }
+
+          // Spawn entry scaling animation
+          if (target.scale < 1) target.scale += 0.1;
+          target.pulse += 0.06;
+          
+          const currentRadius = target.radius * target.scale;
+          
+          // Base shadow ring pulsation
+          ctx.save();
+          ctx.beginPath();
+          ctx.ellipse(target.x, target.y + currentRadius * 0.6, currentRadius * (1 + Math.sin(target.pulse) * 0.06), currentRadius * 0.35, 0, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+          ctx.fill();
+          ctx.restore();
+
+          // Render 3D Vector Cone
+          draw3DCone(
+            ctx, 
+            target.x, 
+            target.y, 
+            currentRadius, 
+            target.color, 
+            target.type === 'bomb', 
+            target.type === 'golden'
+          );
+        }
+
+        // 4. Update Particle Explosions
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.18; // Apply Gravity physics
+          p.alpha -= p.decay;
+          
+          if (p.alpha <= 0) {
+            particles.splice(i, 1);
+            continue;
+          }
+          
+          ctx.save();
+          ctx.globalAlpha = p.alpha;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fillStyle = p.color;
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = p.color;
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // 5. Update Floating score indicators
+        for (let i = floatingTexts.length - 1; i >= 0; i--) {
+          const ft = floatingTexts[i];
+          ft.y += ft.yVelocity;
+          ft.life--;
+          ft.alpha = ft.life / 40;
+          
+          if (ft.life <= 0) {
+            floatingTexts.splice(i, 1);
+            continue;
+          }
+          
+          ctx.save();
+          ctx.globalAlpha = ft.alpha;
+          ctx.fillStyle = ft.color;
+          ctx.font = 'black 900 1.2rem Outfit, Noto Sans KR';
+          ctx.textAlign = 'center';
+          ctx.shadowBlur = 6;
+          ctx.shadowColor = ft.color;
+          ctx.fillText(ft.text, ft.x, ft.y);
+          ctx.restore();
+        }
+      }
+    }
+    
+    // Begin 60fps frame loop
+    gameLoop();
+  </script>
+</body>
+</html>
