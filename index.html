@@ -7,7 +7,7 @@
   
   <!-- Google Fonts & MediaPipe Libraries -->
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <!-- Replaced camera_utils with pure native webcam frame looping -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
   <style>
@@ -21,8 +21,6 @@
       --danger: #ff3b30;        /* Red Bomb */
       --text: #f5f6fa;
       --text-muted: #6e768a;
-      
-      /* Mobile URL bar viewport height fix variable */
       --vh: 1vh;
     }
 
@@ -40,7 +38,6 @@
       color: var(--text);
       font-family: 'Outfit', 'Noto Sans KR', sans-serif;
       overflow: hidden;
-      /* Dynamic height allocation to prevent address bar clipping */
       width: 100vw;
       height: calc(var(--vh, 1vh) * 100);
       display: flex;
@@ -69,7 +66,7 @@
       position: relative;
       width: 100%;
       height: 100%;
-      max-width: 500px; /* Safe portrait envelope */
+      max-width: 500px;
       max-height: 100%;
       display: flex;
       flex-direction: column;
@@ -87,7 +84,7 @@
       }
     }
 
-    /* Top Dashboard HUD optimized for portrait layout */
+    /* HUD */
     header {
       display: flex;
       justify-content: space-between;
@@ -185,11 +182,14 @@
       object-fit: cover;
     }
 
+    /* Standard video tag configuration for iOS Safari */
     #webcam-video {
       display: none;
+      width: 480px;
+      height: 360px;
     }
 
-    /* Screen panels */
+    /* Panels */
     .screen-panel {
       position: absolute;
       inset: 0;
@@ -455,7 +455,8 @@
     <!-- Render Area -->
     <div id="game-canvas-container">
       <canvas id="game-canvas"></canvas>
-      <video id="webcam-video" playsinline></video>
+      <!-- Configure webcam with required attributes for mobile iOS/Android -->
+      <video id="webcam-video" autoplay muted playsinline></video>
     </div>
 
     <!-- Status indicator -->
@@ -509,7 +510,7 @@
   </div>
 
   <script>
-    // --- Dynamic Viewport height handler for mobile address bar bugs ---
+    // --- Dynamic Viewport height handler ---
     function updateVH() {
       const vh = window.innerHeight * 0.01;
       document.documentElement.style.setProperty('--vh', `${vh}px`);
@@ -528,7 +529,10 @@
     let gameTimer = null;
     let playMode = 'camera'; 
     let cameraActive = false;
-    let cameraHelper = null;
+    
+    // Webcam streaming loop controllers
+    let streamActive = false;
+    let animationFrameId = null;
     
     // Adaptive LPF variables
     let pointerX = 0;
@@ -643,7 +647,7 @@
     const guideTxt = document.getElementById('guide-txt');
     const flashOverlay = document.getElementById('flash-overlay');
 
-    // --- Dynamic Resizing ---
+    // --- Resizing ---
     function resizeCanvas() {
       const container = document.getElementById('game-canvas-container');
       canvas.width = container.clientWidth;
@@ -652,7 +656,7 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    // --- MediaPipe Hands Engine Setup (Optimized for Mobile) ---
+    // --- MediaPipe Hands Setup ---
     const hands = new Hands({
       locateFile: (file) => {
         return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
@@ -668,7 +672,7 @@
 
     hands.onResults(onHandResults);
 
-    // Aspect-ratio cover mapping logic (calibrated for vertical portrait layout)
+    // Aspect-ratio cover mapping logic
     function mapVideoToCanvas(normX, normY) {
       const canvasWidth = canvas.width;
       const canvasHeight = canvas.height;
@@ -683,7 +687,6 @@
       let sWidth = vWidth;
       let sHeight = vHeight;
       
-      // Calculate crop metrics for portrait canvas drawing a landscape camera feed
       if (cRatio > vRatio) {
         sHeight = vWidth / cRatio;
         sy = (vHeight - sHeight) / 2;
@@ -698,7 +701,6 @@
       const cropX = (pixelX - sx) / sWidth;
       const cropY = (pixelY - sy) / sHeight;
       
-      // Mirror the X coordinate for mirrored feedback
       const mappedX = (1.0 - cropX) * canvasWidth;
       const mappedY = cropY * canvasHeight;
       
@@ -749,32 +751,76 @@
       }
     }
 
-    function initCamera() {
-      if (cameraHelper) return;
+    // --- Native HTML5 Webcam Initialization & Frame Looping ---
+    // This fully bypasses the buggy MediaPipe Camera wrapper on iOS/Android browsers
+    async function startNativeWebcam() {
+      if (cameraActive) return;
       
       statusText.innerText = "카메라 권한 요청 중...";
-      cameraHelper = new Camera(video, {
-        onFrame: async () => {
-          if (playMode === 'camera') {
-            await hands.send({ image: video });
-          }
-        },
-        width: 480,
-        height: 360
-      });
       
-      cameraHelper.start()
-        .then(() => {
+      const constraints = {
+        video: {
+          width: { ideal: 480 },
+          height: { ideal: 360 },
+          facingMode: 'user'
+        },
+        audio: false
+      };
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = stream;
+        
+        // Explicit playsinline/autoplay attributes for iOS Safari webview
+        video.setAttribute('autoplay', '');
+        video.setAttribute('muted', '');
+        video.setAttribute('playsinline', '');
+        video.play();
+        
+        video.onloadedmetadata = () => {
           cameraActive = true;
           statusDot.classList.add('active');
           statusText.innerText = "카메라 활성화됨";
-        })
-        .catch(err => {
-          console.error("Camera access error:", err);
-          statusText.innerText = "카메라 차단됨 (터치 전용 전환)";
-          statusDot.classList.remove('active');
-          setPlayMode('touch');
-        });
+          
+          // Trigger manual frame ticking
+          streamActive = true;
+          tickCameraFrame();
+        };
+      } catch (err) {
+        console.error("Native camera access failed:", err);
+        statusText.innerText = "카메라 연결 실패 (터치 모드 전환)";
+        statusDot.classList.remove('active');
+        setPlayMode('touch');
+      }
+    }
+
+    async function tickCameraFrame() {
+      if (!streamActive || playMode !== 'camera') return;
+      
+      // Send frames to MediaPipe model when video buffer has loaded metadata
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        try {
+          await hands.send({ image: video });
+        } catch (e) {
+          console.warn("Hands engine processing error:", e);
+        }
+      }
+      
+      // Loop requestAnimationFrame for smooth, un-throttled execution on iOS/Android
+      animationFrameId = requestAnimationFrame(tickCameraFrame);
+    }
+
+    function stopNativeWebcam() {
+      streamActive = false;
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach(track => track.stop());
+        video.srcObject = null;
+      }
+      cameraActive = false;
+      statusDot.classList.remove('active');
+      statusText.innerText = "카메라 꺼짐";
     }
 
     function setPlayMode(mode) {
@@ -784,9 +830,10 @@
       
       if (mode === 'camera') {
         guideTxt.innerHTML = "손 조준점 & <span class='guide-highlight'>화면 터치 병행</span>이 가능합니다!";
-        initCamera();
+        startNativeWebcam();
       } else {
         guideTxt.innerHTML = "화면의 고깔콘을 <span class='guide-highlight'>직접 탭</span>하여 쓰러뜨리세요!";
+        stopNativeWebcam();
         trackedPoints = [];
       }
     }
@@ -897,7 +944,7 @@
       document.getElementById('ambient-glow-2').style.backgroundColor = theme.glow2;
     }
 
-    // Particle system (Shrapnel & Sparkle)
+    // Particle FX
     function createParticles(x, y, color, count, multiplier) {
       for (let i = 0; i < count; i++) {
         const speed = (Math.random() * 5 + 3) * multiplier;
@@ -1014,7 +1061,7 @@
       return getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
     }
 
-    // Screen controllers
+    // Screens
     function showStartScreen(e) {
       if (e) {
         e.preventDefault();
@@ -1040,7 +1087,7 @@
       gameoverScreen.classList.remove('active');
 
       if (playMode === 'camera' && !cameraActive) {
-        initCamera();
+        startNativeWebcam();
       }
 
       runCountdown(3, () => {
@@ -1198,7 +1245,7 @@
       const vWidth = video.videoWidth || 480;
       const vHeight = video.videoHeight || 360;
 
-      // Draw webcam feed cover
+      // Draw webcam feed
       if (playMode === 'camera' && cameraActive) {
         ctx.save();
         ctx.scale(-1, 1);
