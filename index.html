@@ -137,6 +137,12 @@
       flex-direction: column;
       align-items: center;
       min-width: 70px;
+      transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    
+    .stat-badge.bump {
+      transform: scale(1.15);
+      border-color: rgba(255, 255, 255, 0.25);
     }
 
     .stat-label {
@@ -445,8 +451,8 @@
 
     <!-- Play Mode Switcher -->
     <div class="mode-switch">
-      <button class="mode-btn active" id="mode-camera" onclick="setPlayMode('camera')">카메라 모드</button>
-      <button class="mode-btn" id="mode-touch" onclick="setPlayMode('touch')">터치 모드</button>
+      <button class="mode-btn active" id="mode-camera" onclick="setPlayMode('camera')">하이브리드 모드</button>
+      <button class="mode-btn" id="mode-touch" onclick="setPlayMode('touch')">터치 전용 모드</button>
     </div>
 
     <!-- Render Area -->
@@ -471,7 +477,7 @@
       <div class="panel-card">
         <h1 class="panel-title">CONE KNOCKOUT</h1>
         <p class="panel-desc">
-          모바일 기기에 최적화된 모션 인식 콘 터치 게임입니다. 카메라 앞에 서서 조준점이 가상 콘에 닿도록 손을 뻗으세요!
+          모바일 기기에 최적화된 모션 인식 콘 터치 게임입니다. 카메라 앞에 서서 조준점이 가상 콘에 닿도록 손을 뻗으세요! 화면을 직접 터치하여 쓰러뜨릴 수도 있습니다.
         </p>
         <!-- Added touchstart handler for immediate mobile feedback and preventDefault to stop click eating -->
         <button class="btn" onclick="startGame(event)" ontouchstart="startGame(event)">
@@ -515,14 +521,16 @@
     let isPlaying = false;
     let isTransitioning = false; // Prevent double trigger on touch/click events
     let gameTimer = null;
-    let playMode = 'camera'; // 'camera' | 'touch'
+    let playMode = 'camera'; // 'camera' (Hybrid) | 'touch' (Touch-only)
     let cameraActive = false;
     let cameraHelper = null;
     
     // Low pass filter coordinates to remove mobile video jitter
     let pointerX = 0;
     let pointerY = 0;
-    const filterFactor = 0.4;
+    let lastHandTime = 0;
+    const BASE_FILTER_FACTOR = 0.25;
+    let shakeIntensity = 0;
     
     // Targets
     let targets = [];
@@ -700,8 +708,30 @@
         const rawJoint = mapVideoToCanvas(landmarks[5].x, landmarks[5].y);
         const rawPalm = mapVideoToCanvas(landmarks[9].x, landmarks[9].y);
         
-        pointerX = pointerX + (rawTip.x - pointerX) * filterFactor;
-        pointerY = pointerY + (rawTip.y - pointerY) * filterFactor;
+        const now = Date.now();
+        
+        // 손이 화면에 처음 나타났거나 오랫동안 사라졌다가 나타난 경우 (튐 방지)
+        if (now - lastHandTime > 600 || (pointerX === 0 && pointerY === 0)) {
+          pointerX = rawTip.x;
+          pointerY = rawTip.y;
+        } else {
+          // 거리 기반 가변 보간 수식 (Adaptive Low-Pass Filter)
+          const dist = Math.hypot(rawTip.x - pointerX, rawTip.y - pointerY);
+          
+          let dynamicFactor = BASE_FILTER_FACTOR;
+          if (dist < 30) {
+            dynamicFactor = 0.12; // 미세 떨림 보정 (안정적)
+          } else if (dist > 150) {
+            dynamicFactor = 0.55; // 빠른 이동 추적 (반응성 향상)
+          } else {
+            dynamicFactor = 0.12 + ((dist - 30) / 120) * 0.43; // 부드러운 가속 곡선
+          }
+          
+          pointerX = pointerX + (rawTip.x - pointerX) * dynamicFactor;
+          pointerY = pointerY + (rawTip.y - pointerY) * dynamicFactor;
+        }
+        
+        lastHandTime = now;
         
         trackedPoints.push({ x: pointerX, y: pointerY });
         trackedPoints.push({ x: rawJoint.x, y: rawJoint.y, aux: true });
@@ -731,7 +761,7 @@
         })
         .catch(err => {
           console.error("Camera access error:", err);
-          statusText.innerText = "카메라 차단됨 (터치 모드 전환)";
+          statusText.innerText = "카메라 차단됨 (터치 전용 전환)";
           statusDot.classList.remove('active');
           setPlayMode('touch');
         });
@@ -743,7 +773,7 @@
       document.getElementById('mode-touch').classList.toggle('active', mode === 'touch');
       
       if (mode === 'camera') {
-        guideTxt.innerHTML = "손을 <span class='guide-highlight'>카메라</span> 앞에 대고 조준점을 대세요!";
+        guideTxt.innerHTML = "손 조준점 혹은 <span class='guide-highlight'>화면 터치</span>로 고깔콘을 터뜨리세요!";
         initCamera();
       } else {
         guideTxt.innerHTML = "화면의 고깔콘을 <span class='guide-highlight'>터치</span>하여 쓰러뜨리세요!";
@@ -751,7 +781,7 @@
       }
     }
 
-    // Fallback Touch setup
+    // Touch setup (Works both in Hybrid Camera and Touch-Only mode)
     canvas.addEventListener('mousedown', handleInteraction);
     canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
@@ -764,12 +794,13 @@
       if (!isPlaying) return;
       
       const rect = canvas.getBoundingClientRect();
-      const clientX = e.clientX || e.pageX;
-      const clientY = e.clientY || e.pageY;
+      const clientX = e.clientX !== undefined ? e.clientX : (e.pageX || (e.touches && e.touches[0] ? e.touches[0].pageX : 0));
+      const clientY = e.clientY !== undefined ? e.clientY : (e.pageY || (e.touches && e.touches[0] ? e.touches[0].pageY : 0));
       
       const clickX = clientX - rect.left;
       const clickY = clientY - rect.top;
       
+      createTouchRipple(clickX, clickY);
       checkCollision(clickX, clickY);
     }
 
@@ -792,11 +823,13 @@
       if (target.type === 'bomb') {
         playSound('hit-bomb');
         triggerScreenFlash();
-        createParticles(target.x, target.y, varColor('--danger'), 20);
+        createParticles(target.x, target.y, varColor('--danger'), 20, true, false);
         createFloatingText(target.x, target.y, "-15 Combo Over!", varColor('--danger'));
         
         score = Math.max(0, score - 15);
         combo = 1;
+        shakeIntensity = 25;
+        
         targets.splice(index, 1);
         spawnTarget();
       } else {
@@ -806,8 +839,10 @@
         score += pts;
         
         playSound(isGolden ? 'hit-golden' : 'hit-normal');
-        createParticles(target.x, target.y, target.color, isGolden ? 20 : 12);
+        createParticles(target.x, target.y, target.color, isGolden ? 22 : 12, false, isGolden);
         createFloatingText(target.x, target.y, `+${pts} ${combo > 1 ? combo + 'x!' : ''}`, target.color);
+        
+        shakeIntensity = Math.min(5 + combo * 1.5, 20);
         
         combo++;
         if (combo > maxCombo) maxCombo = combo;
@@ -818,6 +853,16 @@
       
       scoreVal.innerText = score;
       comboVal.innerText = `x${combo}`;
+      
+      // Bump animation for score and combo HUD
+      const scoreBadge = scoreVal.parentElement;
+      scoreBadge.classList.add('bump');
+      setTimeout(() => scoreBadge.classList.remove('bump'), 150);
+      
+      const comboBadge = comboVal.parentElement;
+      comboBadge.classList.add('bump');
+      setTimeout(() => comboBadge.classList.remove('bump'), 150);
+      
       updateAmbientGlow(target.type);
     }
 
@@ -834,32 +879,96 @@
       document.getElementById('ambient-glow-2').style.backgroundColor = theme.glow2;
     }
 
-    function createParticles(x, y, color, count) {
-      for (let i = 0; i < count; i++) {
-        const speed = Math.random() * 6 + 3;
+    function createTouchRipple(x, y) {
+      particles.push({
+        type: 'ring',
+        x: x,
+        y: y,
+        radius: 5,
+        maxRadius: 35,
+        color: 'rgba(255, 255, 255, 0.75)',
+        alpha: 0.8,
+        lineWidth: 3,
+        decay: 0.05
+      });
+    }
+
+    function createParticles(x, y, color, baseCount, isBomb, isGolden) {
+      const comboMultiplier = 1 + Math.min(combo * 0.08, 1.2); 
+      const count = Math.floor(baseCount * comboMultiplier);
+      const explosionForce = 1.0 + Math.min(combo * 0.05, 0.8);
+      
+      // 1. Shockwave Ring Effect
+      particles.push({
+        type: 'ring',
+        x: x,
+        y: y,
+        radius: 10,
+        maxRadius: (isBomb ? 110 : (isGolden ? 80 : 55)) * comboMultiplier,
+        color: color,
+        alpha: 1,
+        lineWidth: 6,
+        decay: 0.035
+      });
+      
+      // 2. Primary Shrapnel (Gravity affected fast debris)
+      const primaryCount = Math.floor(count * 0.6);
+      for (let i = 0; i < primaryCount; i++) {
+        const speed = (Math.random() * 7 + 4) * explosionForce;
         const angle = Math.random() * Math.PI * 2;
         particles.push({
+          type: 'shrapnel',
           x: x,
           y: y,
           vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed - 1,
-          radius: Math.random() * 3.5 + 1.5,
+          vy: Math.sin(angle) * speed - 1.5,
+          radius: (Math.random() * 4 + 2) * (isGolden ? 1.4 : 1.0),
           color: color,
           alpha: 1,
-          decay: Math.random() * 0.035 + 0.02
+          decay: Math.random() * 0.03 + 0.015,
+          gravity: 0.18
+        });
+      }
+      
+      // 3. Secondary Sparkles (Low gravity, floating and glowing sparkles)
+      const secondaryCount = count - primaryCount;
+      for (let i = 0; i < secondaryCount; i++) {
+        const speed = (Math.random() * 3 + 1) * explosionForce;
+        const angle = Math.random() * Math.PI * 2;
+        particles.push({
+          type: 'sparkle',
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          radius: Math.random() * 2 + 0.8,
+          color: isGolden ? '#ffffff' : (isBomb ? '#ffcc00' : '#00f0ff'),
+          alpha: 1,
+          decay: Math.random() * 0.015 + 0.008,
+          gravity: 0.03,
+          wobbleSpeed: Math.random() * 0.1 + 0.05,
+          wobbleOffset: Math.random() * 100
         });
       }
     }
 
     function createFloatingText(x, y, text, color) {
+      const comboScale = 1.0 + Math.min(combo * 0.08, 0.8);
+      const angle = (Math.random() - 0.5) * 0.3;
+      const vx = (Math.random() - 0.5) * 1.5;
+      
       floatingTexts.push({
         x: x,
         y: y,
+        vx: vx,
         text: text,
         color: color,
         alpha: 1,
-        yVelocity: -1.8,
-        life: 35
+        yVelocity: -2.2,
+        life: 40,
+        maxLife: 40,
+        scale: comboScale,
+        angle: angle
       });
     }
 
@@ -924,7 +1033,6 @@
         e.stopPropagation();
       }
       
-      // Stop double activation from concurrent click/touchstart events
       if (isTransitioning) return;
       isTransitioning = true;
 
@@ -1082,6 +1190,15 @@
       const vWidth = video.videoWidth || 480;
       const vHeight = video.videoHeight || 360;
 
+      // Apply Screen Shake
+      ctx.save();
+      if (shakeIntensity > 0.1) {
+        const dx = (Math.random() - 0.5) * shakeIntensity;
+        const dy = (Math.random() - 0.5) * shakeIntensity;
+        ctx.translate(dx, dy);
+        shakeIntensity *= 0.88; // decay factor
+      }
+
       // Draw webcam feed with correct crop mapping (Simulate object-fit: cover)
       if (playMode === 'camera' && cameraActive) {
         ctx.save();
@@ -1186,33 +1303,73 @@
         // Update Particle effects
         for (let i = particles.length - 1; i >= 0; i--) {
           const p = particles[i];
-          p.x += p.vx;
-          p.y += p.vy;
-          p.vy += 0.16; // Gravity
-          p.alpha -= p.decay;
           
-          if (p.alpha <= 0) {
-            particles.splice(i, 1);
-            continue;
+          if (p.type === 'ring') {
+            p.radius += (p.maxRadius - p.radius) * 0.15;
+            p.alpha -= p.decay;
+            
+            if (p.alpha <= 0 || p.radius >= p.maxRadius - 1) {
+              particles.splice(i, 1);
+              continue;
+            }
+            
+            ctx.save();
+            ctx.globalAlpha = p.alpha;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = p.lineWidth * p.alpha;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = p.color;
+            ctx.stroke();
+            ctx.restore();
+            
+          } else {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += (p.gravity !== undefined ? p.gravity : 0.16);
+            
+            if (p.type === 'sparkle') {
+              p.x += Math.sin(Date.now() * 0.08 + p.wobbleOffset) * 0.35;
+            }
+            
+            p.alpha -= p.decay;
+            
+            if (p.alpha <= 0) {
+              particles.splice(i, 1);
+              continue;
+            }
+            
+            ctx.save();
+            ctx.globalAlpha = p.alpha;
+            ctx.beginPath();
+            
+            if (p.type === 'sparkle') {
+              const r = p.radius;
+              ctx.moveTo(p.x, p.y - r);
+              ctx.lineTo(p.x + r * 0.7, p.y);
+              ctx.lineTo(p.x, p.y + r);
+              ctx.lineTo(p.x - r * 0.7, p.y);
+              ctx.closePath();
+            } else {
+              ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            }
+            
+            ctx.fillStyle = p.color;
+            ctx.shadowBlur = p.type === 'sparkle' ? 12 : 8;
+            ctx.shadowColor = p.color;
+            ctx.fill();
+            ctx.restore();
           }
-          
-          ctx.save();
-          ctx.globalAlpha = p.alpha;
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-          ctx.fillStyle = p.color;
-          ctx.shadowBlur = 8;
-          ctx.shadowColor = p.color;
-          ctx.fill();
-          ctx.restore();
         }
 
         // Update floating HUD texts
         for (let i = floatingTexts.length - 1; i >= 0; i--) {
           const ft = floatingTexts[i];
           ft.y += ft.yVelocity;
+          if (ft.vx) ft.x += ft.vx;
           ft.life--;
-          ft.alpha = ft.life / 35;
+          ft.alpha = ft.life / ft.maxLife;
           
           if (ft.life <= 0) {
             floatingTexts.splice(i, 1);
@@ -1221,15 +1378,22 @@
           
           ctx.save();
           ctx.globalAlpha = ft.alpha;
+          ctx.translate(ft.x, ft.y);
+          ctx.rotate(ft.angle);
+          ctx.scale(ft.scale, ft.scale);
+          
           ctx.fillStyle = ft.color;
-          ctx.font = 'black 900 1rem Outfit, Noto Sans KR';
-          ctx.textAlign = 'center';
-          ctx.shadowBlur = 4;
+          ctx.shadowBlur = combo > 5 ? 12 : 5;
           ctx.shadowColor = ft.color;
-          ctx.fillText(ft.text, ft.x, ft.y);
+          ctx.font = '900 1.1rem Outfit, Noto Sans KR';
+          ctx.textAlign = 'center';
+          ctx.fillText(ft.text, 0, 0);
           ctx.restore();
         }
       }
+      
+      // Restore Screen Shake
+      ctx.restore();
     }
     
     // Start Loop
