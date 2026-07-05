@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>콘 녹아웃 프로 (Cone Knockout Pro)</title>
+  <title>콘 녹아웃 프로 (Cone Knockout Pro) - 가로 모드</title>
   
   <!-- Google Fonts & MediaPipe Libraries -->
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
@@ -13,7 +13,7 @@
   <style>
     :root {
       --bg-dark: #07080d;
-      --panel-bg: rgba(13, 17, 28, 0.75);
+      --panel-bg: rgba(13, 17, 28, 0.8);
       --panel-border: rgba(255, 255, 255, 0.08);
       --primary: #ff2a85;       /* Neon Pink */
       --secondary: #00f0ff;     /* Neon Cyan */
@@ -53,20 +53,20 @@
       border-radius: 50%;
       filter: blur(120px);
       z-index: 1;
-      opacity: 0.3;
+      opacity: 0.25;
       pointer-events: none;
       transition: background-color 0.4s ease;
     }
     .glow-1 { top: -50px; left: -50px; background-color: var(--primary); }
     .glow-2 { bottom: -50px; right: -50px; background-color: var(--secondary); }
 
-    /* Main Container */
+    /* Main Container optimized for landscape */
     #app-container {
       position: relative;
       width: 100%;
       height: 100%;
-      max-width: 1024px;
-      max-height: 768px;
+      max-width: 1120px;
+      max-height: 700px; /* Landscape layout constraints */
       display: flex;
       flex-direction: column;
       z-index: 2;
@@ -83,12 +83,12 @@
       }
     }
 
-    /* Top Dashboard HUD */
+    /* Top Dashboard HUD - Reduced height to preserve landscape view space */
     header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 16px 20px;
+      padding: 12px 20px;
       background: linear-gradient(180deg, rgba(7, 8, 13, 0.95) 0%, rgba(7, 8, 13, 0) 100%);
       z-index: 10;
       position: absolute;
@@ -104,7 +104,7 @@
 
     .logo {
       font-weight: 900;
-      font-size: 1.3rem;
+      font-size: 1.15rem;
       letter-spacing: -0.5px;
       background: linear-gradient(90deg, var(--primary), var(--secondary));
       -webkit-background-clip: text;
@@ -113,9 +113,9 @@
     }
 
     .sub-brand {
-      font-size: 0.6rem;
+      font-size: 0.55rem;
       color: var(--text-muted);
-      letter-spacing: 1.5px;
+      letter-spacing: 1px;
       text-transform: uppercase;
       font-weight: 700;
       margin-top: -2px;
@@ -131,22 +131,16 @@
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       border: 1px solid var(--panel-border);
-      padding: 8px 12px;
-      border-radius: 12px;
+      padding: 6px 12px;
+      border-radius: 10px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      min-width: 70px;
-      transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
-    
-    .stat-badge.bump {
-      transform: scale(1.15);
-      border-color: rgba(255, 255, 255, 0.25);
+      min-width: 65px;
     }
 
     .stat-label {
-      font-size: 0.55rem;
+      font-size: 0.5rem;
       text-transform: uppercase;
       color: var(--text-muted);
       font-weight: 800;
@@ -154,7 +148,7 @@
     }
 
     .stat-value {
-      font-size: 1.1rem;
+      font-size: 1rem;
       font-weight: 900;
       color: #fff;
     }
@@ -191,7 +185,7 @@
       display: none;
     }
 
-    /* Screen overlays (Start, GameOver) */
+    /* Screen overlays */
     .screen-panel {
       position: absolute;
       inset: 0;
@@ -202,13 +196,13 @@
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      padding: 24px;
+      padding: 20px;
       text-align: center;
       z-index: 100;
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-      touch-action: none; /* Block default scroll gestures when overlay is up */
+      touch-action: none;
     }
 
     .screen-panel.active {
@@ -220,16 +214,16 @@
       background: rgba(255, 255, 255, 0.02);
       border: 1px solid rgba(255, 255, 255, 0.05);
       border-radius: 20px;
-      padding: 30px 20px;
-      max-width: 400px;
+      padding: 24px;
+      max-width: 440px;
       width: 100%;
       box-shadow: 0 20px 40px rgba(0,0,0,0.5);
     }
 
     h1.panel-title {
-      font-size: 2.2rem;
+      font-size: 2rem;
       font-weight: 900;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       background: linear-gradient(135deg, #fff 40%, #7e879a 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -237,13 +231,12 @@
     }
 
     p.panel-desc {
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       color: var(--text-muted);
-      margin-bottom: 24px;
+      margin-bottom: 20px;
       line-height: 1.5;
     }
 
-    /* Action buttons: Added touch-action and pointer-events rules */
     .btn {
       pointer-events: auto !important;
       touch-action: manipulation;
@@ -251,10 +244,10 @@
       color: #fff;
       border: none;
       width: 100%;
-      padding: 14px 28px;
-      font-size: 1rem;
+      padding: 12px 24px;
+      font-size: 0.95rem;
       font-weight: 700;
-      border-radius: 14px;
+      border-radius: 12px;
       cursor: pointer;
       box-shadow: 0 8px 20px rgba(255, 42, 133, 0.3);
       transition: all 0.2s ease;
@@ -278,7 +271,7 @@
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid var(--panel-border);
       box-shadow: none;
-      margin-top: 10px;
+      margin-top: 8px;
       color: var(--text);
     }
 
@@ -288,10 +281,10 @@
       transform: translateY(-1px);
     }
 
-    /* Mode Selector Top-Right */
+    /* Mode Selector Top-Right - Slightly shifted down to avoid corner radius */
     .mode-switch {
       position: absolute;
-      top: 80px;
+      top: 65px;
       right: 20px;
       z-index: 50;
       background: var(--panel-bg);
@@ -309,8 +302,8 @@
       background: transparent;
       border: none;
       color: var(--text-muted);
-      padding: 6px 12px;
-      font-size: 0.75rem;
+      padding: 5px 10px;
+      font-size: 0.7rem;
       font-weight: 700;
       border-radius: 8px;
       cursor: pointer;
@@ -338,7 +331,7 @@
     }
 
     #countdown-txt {
-      font-size: 6rem;
+      font-size: 5rem;
       font-weight: 900;
       color: #fff;
       text-shadow: 0 0 30px rgba(0, 240, 255, 0.6);
@@ -356,15 +349,15 @@
     /* Status Indicator Bottom-Left */
     #status-indicator {
       position: absolute;
-      bottom: 20px;
+      bottom: 16px;
       left: 20px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       background: rgba(7, 8, 13, 0.85);
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 0.7rem;
+      padding: 5px 10px;
+      border-radius: 16px;
+      font-size: 0.65rem;
       font-weight: 700;
       border: 1px solid var(--panel-border);
       z-index: 50;
@@ -372,8 +365,8 @@
     }
 
     .status-dot {
-      width: 8px;
-      height: 8px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
       background-color: var(--danger);
     }
@@ -386,15 +379,15 @@
     /* Guide Badge Bottom-Right */
     #guide-badge {
       position: absolute;
-      bottom: 20px;
+      bottom: 16px;
       right: 20px;
       background: var(--panel-bg);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       border: 1px solid var(--panel-border);
-      padding: 8px 14px;
-      border-radius: 12px;
-      font-size: 0.75rem;
+      padding: 6px 12px;
+      border-radius: 10px;
+      font-size: 0.7rem;
       color: #fff;
       display: flex;
       align-items: center;
@@ -417,9 +410,87 @@
       pointer-events: none;
       transition: opacity 0.1s ease-out;
     }
+
+    /* ----------------------------------------------------
+       强制横屏提示遮罩 (Landscape Rotation Proximity Overlay)
+       ---------------------------------------------------- */
+    #rotate-overlay {
+      position: fixed;
+      inset: 0;
+      background-color: #07080d;
+      z-index: 9999;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 24px;
+      color: #fff;
+    }
+
+    .rotate-icon {
+      width: 70px;
+      height: 70px;
+      margin-bottom: 24px;
+      animation: rotateAnim 2s infinite ease-in-out;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.2);
+    }
+
+    .rotate-icon svg {
+      width: 40px;
+      height: 40px;
+      fill: #fff;
+    }
+
+    .rotate-title {
+      font-size: 1.4rem;
+      font-weight: 900;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .rotate-desc {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+      max-width: 300px;
+    }
+
+    /* Screen orientation query: Display warning if portrait on mobile devices */
+    @media (orientation: portrait) {
+      #rotate-overlay {
+        display: flex;
+      }
+    }
+
+    @keyframes rotateAnim {
+      0% { transform: rotate(0deg); }
+      35% { transform: rotate(-90deg); }
+      70% { transform: rotate(-90deg); }
+      100% { transform: rotate(0deg); }
+    }
   </style>
 </head>
 <body>
+
+  <!-- Forced Landscape Overlay -->
+  <div id="rotate-overlay">
+    <div class="rotate-icon">
+      <!-- Phone rotating vector icon -->
+      <svg viewBox="0 0 24 24">
+        <path d="M16 1H8C6.34 1 5 2.34 5 4v16c0 1.66 1.34 3 3 3h8c1.66 0 3-1.34 3-3V4c0-1.66-1.34-3-3-3zm-2 20h-4v-1h4v1zm3-3H7V4h10v14z"/>
+      </svg>
+    </div>
+    <div class="rotate-title">화면을 가로로 돌려주세요!</div>
+    <div class="rotate-desc">
+      콘 녹아웃 게임은 넓은 공간 감지를 위해 <strong>가로 모드(Landscape)</strong> 플레이를 권장합니다. 기기 자동 회전을 켠 후 가로로 눕혀주세요.
+    </div>
+  </div>
 
   <div class="bg-glow glow-1" id="ambient-glow-1"></div>
   <div class="bg-glow glow-2" id="ambient-glow-2"></div>
@@ -431,7 +502,7 @@
     <header>
       <div class="brand-section">
         <div class="logo">CONE KNOCKOUT</div>
-        <div class="sub-brand">Optimized for Mobile</div>
+        <div class="sub-brand">Landscape Hybrid Mode</div>
       </div>
       <div class="stats-container">
         <div class="stat-badge">
@@ -451,8 +522,8 @@
 
     <!-- Play Mode Switcher -->
     <div class="mode-switch">
-      <button class="mode-btn active" id="mode-camera" onclick="setPlayMode('camera')">하이브리드 모드</button>
-      <button class="mode-btn" id="mode-touch" onclick="setPlayMode('touch')">터치 전용 모드</button>
+      <button class="mode-btn active" id="mode-camera" onclick="setPlayMode('camera')">카메라+터치</button>
+      <button class="mode-btn" id="mode-touch" onclick="setPlayMode('touch')">터치 전용</button>
     </div>
 
     <!-- Render Area -->
@@ -477,9 +548,8 @@
       <div class="panel-card">
         <h1 class="panel-title">CONE KNOCKOUT</h1>
         <p class="panel-desc">
-          모바일 기기에 최적화된 모션 인식 콘 터치 게임입니다. 카메라 앞에 서서 조준점이 가상 콘에 닿도록 손을 뻗으세요! 화면을 직접 터치하여 쓰러뜨릴 수도 있습니다.
+          가로 모드 기반의 하이브리드 스포츠 게임입니다. 허공에 손을 뻗어 조준점으로 맞추거나, 화면을 손가락으로 탭하여 콘을 파괴하세요!
         </p>
-        <!-- Added touchstart handler for immediate mobile feedback and preventDefault to stop click eating -->
         <button class="btn" onclick="startGame(event)" ontouchstart="startGame(event)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
           게임 시작하기
@@ -519,32 +589,35 @@
     let maxCombo = 1;
     let timeRemaining = 45;
     let isPlaying = false;
-    let isTransitioning = false; // Prevent double trigger on touch/click events
+    let isTransitioning = false;
     let gameTimer = null;
-    let playMode = 'camera'; // 'camera' (Hybrid) | 'touch' (Touch-only)
+    let playMode = 'camera'; // 'camera' (includes touch) | 'touch' (only touch)
     let cameraActive = false;
     let cameraHelper = null;
     
-    // Low pass filter coordinates to remove mobile video jitter
+    // Smooth adaptive LPF variables
     let pointerX = 0;
     let pointerY = 0;
-    let lastHandTime = 0;
-    const BASE_FILTER_FACTOR = 0.25;
-    let shakeIntensity = 0;
+    let lastTrackTime = 0;
+    let hasLastPoint = false;
     
     // Targets
     let targets = [];
     const MAX_TARGETS = 4;
     let nextTargetId = 0;
     
-    // List of hand pointers to draw and check collisions (Finger, palm, etc.)
+    // Tracked points (tip, joints, palm)
     let trackedPoints = [];
     
     // FX
     let particles = [];
     let floatingTexts = [];
+    let touchRipples = [];
+    
+    // Screen shake variable
+    let shakeIntensity = 0;
 
-    // Ambient glows
+    // Ambient colors
     const ambientColors = {
       normal: { glow1: '#ff2a85', glow2: '#00f0ff' },
       golden: { glow1: '#ffb800', glow2: '#ff2a85' },
@@ -645,6 +718,18 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
+    // --- Screen Orientation Locking (Web Standard) ---
+    function lockScreenLandscape() {
+      if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock('landscape').catch(err => {
+          // Silent catch since some mobile browsers restrict locking
+          console.warn("Screen lock not fully supported or requires interaction: ", err);
+        });
+      }
+    }
+    window.addEventListener('click', lockScreenLandscape);
+    window.addEventListener('touchstart', lockScreenLandscape);
+
     // --- MediaPipe Hands Engine Setup (Optimized for Mobile) ---
     const hands = new Hands({
       locateFile: (file) => {
@@ -661,7 +746,7 @@
 
     hands.onResults(onHandResults);
 
-    // Aspect-ratio aware mapping from normalized video coordinates to canvas pixels
+    // Aspect-ratio cover mapping logic
     function mapVideoToCanvas(normX, normY) {
       const canvasWidth = canvas.width;
       const canvasHeight = canvas.height;
@@ -699,46 +784,50 @@
     function onHandResults(results) {
       if (!isPlaying || playMode !== 'camera') return;
       
-      trackedPoints = [];
+      const now = Date.now();
+      
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         const landmarks = results.multiHandLandmarks[0];
         
-        // Multi-point hand tracking for forgiving collision detection
+        // Multi-point hand tracking
         const rawTip = mapVideoToCanvas(landmarks[8].x, landmarks[8].y);
         const rawJoint = mapVideoToCanvas(landmarks[5].x, landmarks[5].y);
         const rawPalm = mapVideoToCanvas(landmarks[9].x, landmarks[9].y);
         
-        const now = Date.now();
-        
-        // 손이 화면에 처음 나타났거나 오랫동안 사라졌다가 나타난 경우 (튐 방지)
-        if (now - lastHandTime > 600 || (pointerX === 0 && pointerY === 0)) {
+        // Hand tracking safety jump (If tracking was lost for >0.6s, instantly jump cursor to avoid sliding across screen)
+        if (!hasLastPoint || (now - lastTrackTime > 600)) {
           pointerX = rawTip.x;
           pointerY = rawTip.y;
+          hasLastPoint = true;
         } else {
-          // 거리 기반 가변 보간 수식 (Adaptive Low-Pass Filter)
-          const dist = Math.hypot(rawTip.x - pointerX, rawTip.y - pointerY);
+          // Dynamic LPF factor: smooth out micro shakes, but move fast when needed
+          const distance = Math.hypot(rawTip.x - pointerX, rawTip.y - pointerY);
+          let adaptiveFactor = filterFactor; // Default 0.4
           
-          let dynamicFactor = BASE_FILTER_FACTOR;
-          if (dist < 30) {
-            dynamicFactor = 0.12; // 미세 떨림 보정 (안정적)
-          } else if (dist > 150) {
-            dynamicFactor = 0.55; // 빠른 이동 추적 (반응성 향상)
-          } else {
-            dynamicFactor = 0.12 + ((dist - 30) / 120) * 0.43; // 부드러운 가속 곡선
+          if (distance < 30) {
+            adaptiveFactor = 0.12; // Static dampening
+          } else if (distance > 150) {
+            adaptiveFactor = 0.55; // Fast follow
           }
           
-          pointerX = pointerX + (rawTip.x - pointerX) * dynamicFactor;
-          pointerY = pointerY + (rawTip.y - pointerY) * dynamicFactor;
+          pointerX = pointerX + (rawTip.x - pointerX) * adaptiveFactor;
+          pointerY = pointerY + (rawTip.y - pointerY) * adaptiveFactor;
         }
         
-        lastHandTime = now;
+        lastTrackTime = now;
         
-        trackedPoints.push({ x: pointerX, y: pointerY });
-        trackedPoints.push({ x: rawJoint.x, y: rawJoint.y, aux: true });
-        trackedPoints.push({ x: rawPalm.x, y: rawPalm.y, aux: true });
+        trackedPoints = [
+          { x: pointerX, y: pointerY },
+          { x: rawJoint.x, y: rawJoint.y, aux: true },
+          { x: rawPalm.x, y: rawPalm.y, aux: true }
+        ];
+      } else {
+        // Clear tracked points if hand is not detected
+        trackedPoints = [];
       }
     }
 
+    // Camera initializer (Webcam feed resolution limited for fast mobile inference)
     function initCamera() {
       if (cameraHelper) return;
       
@@ -773,15 +862,15 @@
       document.getElementById('mode-touch').classList.toggle('active', mode === 'touch');
       
       if (mode === 'camera') {
-        guideTxt.innerHTML = "손 조준점 혹은 <span class='guide-highlight'>화면 터치</span>로 고깔콘을 터뜨리세요!";
+        guideTxt.innerHTML = "손 조준점 & <span class='guide-highlight'>화면 터치 병행</span>이 가능합니다!";
         initCamera();
       } else {
-        guideTxt.innerHTML = "화면의 고깔콘을 <span class='guide-highlight'>터치</span>하여 쓰러뜨리세요!";
+        guideTxt.innerHTML = "화면의 고깔콘을 <span class='guide-highlight'>직접 탭</span>하여 쓰러뜨리세요!";
         trackedPoints = [];
       }
     }
 
-    // Touch setup (Works both in Hybrid Camera and Touch-Only mode)
+    // Dual-use Interaction Handlers (Touch & Mouse)
     canvas.addEventListener('mousedown', handleInteraction);
     canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
@@ -794,18 +883,24 @@
       if (!isPlaying) return;
       
       const rect = canvas.getBoundingClientRect();
-      const clientX = e.clientX !== undefined ? e.clientX : (e.pageX || (e.touches && e.touches[0] ? e.touches[0].pageX : 0));
-      const clientY = e.clientY !== undefined ? e.clientY : (e.pageY || (e.touches && e.touches[0] ? e.touches[0].pageY : 0));
+      const clientX = e.clientX || e.pageX;
+      const clientY = e.clientY || e.pageY;
       
       const clickX = clientX - rect.left;
       const clickY = clientY - rect.top;
       
+      // Mirror touch coordinate if video is running mirrored
+      const mappedX = (playMode === 'camera' && cameraActive) ? (canvas.width - clickX) : clickX;
+      
+      // Spawn feedback ripple at raw touch coordinates
       createTouchRipple(clickX, clickY);
-      checkCollision(clickX, clickY);
+      
+      // Check target collision
+      checkCollision(mappedX, clickY);
     }
 
     function checkCollision(x, y) {
-      const hitboxMargin = 15;
+      const hitboxMargin = 18; // Generous margin for easy targeting
       
       for (let i = targets.length - 1; i >= 0; i--) {
         const target = targets[i];
@@ -820,16 +915,20 @@
     function triggerHit(index) {
       const target = targets[index];
       
+      // Shake multiplier increases with combos
+      const comboMultiplier = Math.min(3, 1 + combo * 0.1);
+      
       if (target.type === 'bomb') {
         playSound('hit-bomb');
         triggerScreenFlash();
-        createParticles(target.x, target.y, varColor('--danger'), 20, true, false);
-        createFloatingText(target.x, target.y, "-15 Combo Over!", varColor('--danger'));
+        createParticles(target.x, target.y, varColor('--danger'), 20, comboMultiplier);
+        createFloatingText(target.x, target.y, "-15 Bomb!", varColor('--danger'), 1.2);
+        
+        // Screenshake
+        shakeIntensity = 20;
         
         score = Math.max(0, score - 15);
         combo = 1;
-        shakeIntensity = 25;
-        
         targets.splice(index, 1);
         spawnTarget();
       } else {
@@ -839,10 +938,17 @@
         score += pts;
         
         playSound(isGolden ? 'hit-golden' : 'hit-normal');
-        createParticles(target.x, target.y, target.color, isGolden ? 22 : 12, false, isGolden);
-        createFloatingText(target.x, target.y, `+${pts} ${combo > 1 ? combo + 'x!' : ''}`, target.color);
         
-        shakeIntensity = Math.min(5 + combo * 1.5, 20);
+        // Spawn double-layer particles and shockwaves
+        createParticles(target.x, target.y, target.color, isGolden ? 22 : 12, comboMultiplier);
+        createShockwave(target.x, target.y, target.color, (target.radius * 1.5) * comboMultiplier);
+        createFloatingText(target.x, target.y, `+${pts}`, target.color, comboMultiplier);
+        
+        // Screenshake
+        shakeIntensity = 6 * comboMultiplier;
+        
+        // Bump HUD panel
+        bumpHUD();
         
         combo++;
         if (combo > maxCombo) maxCombo = combo;
@@ -853,16 +959,6 @@
       
       scoreVal.innerText = score;
       comboVal.innerText = `x${combo}`;
-      
-      // Bump animation for score and combo HUD
-      const scoreBadge = scoreVal.parentElement;
-      scoreBadge.classList.add('bump');
-      setTimeout(() => scoreBadge.classList.remove('bump'), 150);
-      
-      const comboBadge = comboVal.parentElement;
-      comboBadge.classList.add('bump');
-      setTimeout(() => comboBadge.classList.remove('bump'), 150);
-      
       updateAmbientGlow(target.type);
     }
 
@@ -873,102 +969,100 @@
       }, 150);
     }
 
+    function bumpHUD() {
+      const badges = document.querySelectorAll('.stat-badge');
+      badges.forEach(b => {
+        b.style.transform = 'scale(1.15)';
+        b.style.transition = 'transform 0.05s ease-out';
+        setTimeout(() => {
+          b.style.transform = 'scale(1)';
+          b.style.transition = 'transform 0.15s ease-in';
+        }, 60);
+      });
+    }
+
     function updateAmbientGlow(type) {
       const theme = ambientColors[type] || ambientColors.normal;
       document.getElementById('ambient-glow-1').style.backgroundColor = theme.glow1;
       document.getElementById('ambient-glow-2').style.backgroundColor = theme.glow2;
     }
 
-    function createTouchRipple(x, y) {
-      particles.push({
-        type: 'ring',
-        x: x,
-        y: y,
-        radius: 5,
-        maxRadius: 35,
-        color: 'rgba(255, 255, 255, 0.75)',
-        alpha: 0.8,
-        lineWidth: 3,
-        decay: 0.05
-      });
-    }
-
-    function createParticles(x, y, color, baseCount, isBomb, isGolden) {
-      const comboMultiplier = 1 + Math.min(combo * 0.08, 1.2); 
-      const count = Math.floor(baseCount * comboMultiplier);
-      const explosionForce = 1.0 + Math.min(combo * 0.05, 0.8);
-      
-      // 1. Shockwave Ring Effect
-      particles.push({
-        type: 'ring',
-        x: x,
-        y: y,
-        radius: 10,
-        maxRadius: (isBomb ? 110 : (isGolden ? 80 : 55)) * comboMultiplier,
-        color: color,
-        alpha: 1,
-        lineWidth: 6,
-        decay: 0.035
-      });
-      
-      // 2. Primary Shrapnel (Gravity affected fast debris)
-      const primaryCount = Math.floor(count * 0.6);
-      for (let i = 0; i < primaryCount; i++) {
-        const speed = (Math.random() * 7 + 4) * explosionForce;
+    // Particle FX Engine (Dual Layer: Shrapnel & Sparkle)
+    function createParticles(x, y, color, count, multiplier) {
+      // 1. Solid Shrapnel particles (Heavy gravity drops)
+      for (let i = 0; i < count; i++) {
+        const speed = (Math.random() * 5 + 3) * multiplier;
         const angle = Math.random() * Math.PI * 2;
         particles.push({
           type: 'shrapnel',
           x: x,
           y: y,
           vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed - 1.5,
-          radius: (Math.random() * 4 + 2) * (isGolden ? 1.4 : 1.0),
+          vy: Math.sin(angle) * speed - 1,
+          radius: Math.random() * 3.5 + 1.5,
           color: color,
           alpha: 1,
-          decay: Math.random() * 0.03 + 0.015,
-          gravity: 0.18
+          decay: Math.random() * 0.035 + 0.02
         });
       }
-      
-      // 3. Secondary Sparkles (Low gravity, floating and glowing sparkles)
-      const secondaryCount = count - primaryCount;
-      for (let i = 0; i < secondaryCount; i++) {
-        const speed = (Math.random() * 3 + 1) * explosionForce;
+      // 2. Sparkle floaters (Light buoyancy sparkles)
+      for (let i = 0; i < Math.floor(count * 0.8); i++) {
+        const speed = (Math.random() * 2 + 1) * multiplier;
         const angle = Math.random() * Math.PI * 2;
         particles.push({
           type: 'sparkle',
           x: x,
           y: y,
           vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          radius: Math.random() * 2 + 0.8,
-          color: isGolden ? '#ffffff' : (isBomb ? '#ffcc00' : '#00f0ff'),
+          vy: Math.sin(angle) * speed - 0.5,
+          radius: Math.random() * 2 + 1,
+          color: '#ffffff',
           alpha: 1,
-          decay: Math.random() * 0.015 + 0.008,
-          gravity: 0.03,
-          wobbleSpeed: Math.random() * 0.1 + 0.05,
-          wobbleOffset: Math.random() * 100
+          decay: Math.random() * 0.02 + 0.015,
+          rot: Math.random() * Math.PI,
+          rotSpeed: (Math.random() - 0.5) * 0.1
         });
       }
     }
 
-    function createFloatingText(x, y, text, color) {
-      const comboScale = 1.0 + Math.min(combo * 0.08, 0.8);
-      const angle = (Math.random() - 0.5) * 0.3;
-      const vx = (Math.random() - 0.5) * 1.5;
-      
+    // Radial shockwave ring
+    function createShockwave(x, y, color, maxRadius) {
+      touchRipples.push({
+        x: x,
+        y: y,
+        radius: 10,
+        maxRadius: maxRadius,
+        color: color,
+        alpha: 0.8,
+        growth: 4
+      });
+    }
+
+    // Touch Feedback Ripple
+    function createTouchRipple(x, y) {
+      touchRipples.push({
+        x: x,
+        y: y,
+        radius: 5,
+        maxRadius: 40,
+        color: '#ffffff',
+        alpha: 0.6,
+        growth: 3.5
+      });
+    }
+
+    // Floating text FX with rotation and scale physics
+    function createFloatingText(x, y, text, color, multiplier) {
       floatingTexts.push({
         x: x,
         y: y,
-        vx: vx,
         text: text,
         color: color,
         alpha: 1,
-        yVelocity: -2.2,
+        yVelocity: -2,
         life: 40,
-        maxLife: 40,
-        scale: comboScale,
-        angle: angle
+        scale: 0.8 + (multiplier * 0.15),
+        rot: (Math.random() - 0.5) * 0.3
       });
     }
 
@@ -982,14 +1076,14 @@
       const roll = Math.random();
       let type = 'normal';
       let color = varColor('--secondary');
-      let radiusScale = 0.09;
+      let radiusScale = 0.09; 
       let life = null;
       
       if (roll > 0.90) {
         type = 'golden';
         color = varColor('--accent');
-        radiusScale = 0.07;
-        life = 3500;
+        radiusScale = 0.075;
+        life = 3200;
       } else if (roll > 0.75) {
         type = 'bomb';
         color = varColor('--danger');
@@ -1040,6 +1134,9 @@
       startScreen.classList.remove('active');
       gameoverScreen.classList.remove('active');
       
+      // Auto-lock landscape orientation if supported
+      lockScreenLandscape();
+
       if (playMode === 'camera' && !cameraActive) {
         initCamera();
       }
@@ -1055,6 +1152,7 @@
         targets = [];
         particles = [];
         floatingTexts = [];
+        touchRipples = [];
         isPlaying = true;
         isTransitioning = false;
         
@@ -1109,7 +1207,7 @@
       gameoverScreen.classList.add('active');
     }
 
-    // Vector 3D Cone drawing
+    // Cone 3D drawing
     function draw3DCone(ctx, x, y, radius, color, isBomb, isGolden) {
       ctx.save();
       ctx.shadowBlur = 15;
@@ -1183,23 +1281,28 @@
     function gameLoop() {
       requestAnimationFrame(gameLoop);
       
+      // Handle screenshake decay
+      let dx = 0;
+      let dy = 0;
+      if (shakeIntensity > 0) {
+        dx = (Math.random() - 0.5) * shakeIntensity;
+        dy = (Math.random() - 0.5) * shakeIntensity;
+        shakeIntensity *= 0.88; // decay
+        if (shakeIntensity < 0.2) shakeIntensity = 0;
+      }
+      
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      ctx.save();
+      // Apply screen shake translate
+      ctx.translate(dx, dy);
       
       const canvasWidth = canvas.width;
       const canvasHeight = canvas.height;
       const vWidth = video.videoWidth || 480;
       const vHeight = video.videoHeight || 360;
 
-      // Apply Screen Shake
-      ctx.save();
-      if (shakeIntensity > 0.1) {
-        const dx = (Math.random() - 0.5) * shakeIntensity;
-        const dy = (Math.random() - 0.5) * shakeIntensity;
-        ctx.translate(dx, dy);
-        shakeIntensity *= 0.88; // decay factor
-      }
-
-      // Draw webcam feed with correct crop mapping (Simulate object-fit: cover)
+      // Draw webcam feed cover
       if (playMode === 'camera' && cameraActive) {
         ctx.save();
         ctx.scale(-1, 1);
@@ -1224,7 +1327,7 @@
         ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvasWidth, canvasHeight);
         ctx.restore();
         
-        ctx.fillStyle = 'rgba(7, 8, 13, 0.5)';
+        ctx.fillStyle = 'rgba(7, 8, 13, 0.55)';
         ctx.fillRect(0, 0, canvasWidth, canvasHeight);
       } else {
         // Grid background for Touch Mode
@@ -1252,7 +1355,6 @@
           for (const pt of trackedPoints) {
             checkCollision(pt.x, pt.y);
             
-            // Only draw cursor for the primary point (finger tip)
             if (!pt.aux) {
               ctx.save();
               ctx.shadowBlur = 15;
@@ -1274,7 +1376,7 @@
           }
         }
 
-        // Update & Draw target cones
+        // Draw targets
         const now = Date.now();
         for (let i = targets.length - 1; i >= 0; i--) {
           const target = targets[i];
@@ -1300,76 +1402,76 @@
           draw3DCone(ctx, target.x, target.y, currentRadius, target.color, target.type === 'bomb', target.type === 'golden');
         }
 
-        // Update Particle effects
+        // Update Particle FX
         for (let i = particles.length - 1; i >= 0; i--) {
           const p = particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
           
-          if (p.type === 'ring') {
-            p.radius += (p.maxRadius - p.radius) * 0.15;
-            p.alpha -= p.decay;
-            
-            if (p.alpha <= 0 || p.radius >= p.maxRadius - 1) {
-              particles.splice(i, 1);
-              continue;
-            }
-            
-            ctx.save();
-            ctx.globalAlpha = p.alpha;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-            ctx.strokeStyle = p.color;
-            ctx.lineWidth = p.lineWidth * p.alpha;
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = p.color;
-            ctx.stroke();
-            ctx.restore();
-            
+          if (p.type === 'shrapnel') {
+            p.vy += 0.18; // Heavy Gravity
           } else {
-            p.x += p.vx;
-            p.y += p.vy;
-            p.vy += (p.gravity !== undefined ? p.gravity : 0.16);
-            
-            if (p.type === 'sparkle') {
-              p.x += Math.sin(Date.now() * 0.08 + p.wobbleOffset) * 0.35;
-            }
-            
-            p.alpha -= p.decay;
-            
-            if (p.alpha <= 0) {
-              particles.splice(i, 1);
-              continue;
-            }
-            
-            ctx.save();
-            ctx.globalAlpha = p.alpha;
+            p.vy += 0.03; // Light gravity for buoyancy sparkle
+            p.rot += p.rotSpeed;
+          }
+          
+          p.alpha -= p.decay;
+          
+          if (p.alpha <= 0) {
+            particles.splice(i, 1);
+            continue;
+          }
+          
+          ctx.save();
+          ctx.globalAlpha = p.alpha;
+          ctx.translate(p.x, p.y);
+          
+          if (p.type === 'sparkle') {
+            // Rotated stars for sparkle layer
+            ctx.rotate(p.rot);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(-p.radius, -p.radius, p.radius * 2, p.radius * 2);
+          } else {
+            // Classic circular particles
             ctx.beginPath();
-            
-            if (p.type === 'sparkle') {
-              const r = p.radius;
-              ctx.moveTo(p.x, p.y - r);
-              ctx.lineTo(p.x + r * 0.7, p.y);
-              ctx.lineTo(p.x, p.y + r);
-              ctx.lineTo(p.x - r * 0.7, p.y);
-              ctx.closePath();
-            } else {
-              ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-            }
-            
+            ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
             ctx.fillStyle = p.color;
-            ctx.shadowBlur = p.type === 'sparkle' ? 12 : 8;
+            ctx.shadowBlur = 8;
             ctx.shadowColor = p.color;
             ctx.fill();
-            ctx.restore();
           }
+          ctx.restore();
         }
 
-        // Update floating HUD texts
+        // Update Shockwaves & Ripples
+        for (let i = touchRipples.length - 1; i >= 0; i--) {
+          const r = touchRipples[i];
+          r.radius += r.growth;
+          r.alpha = 1 - (r.radius / r.maxRadius);
+          
+          if (r.radius >= r.maxRadius || r.alpha <= 0) {
+            touchRipples.splice(i, 1);
+            continue;
+          }
+          
+          ctx.save();
+          ctx.globalAlpha = r.alpha;
+          ctx.beginPath();
+          ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+          ctx.strokeStyle = r.color;
+          ctx.lineWidth = 3;
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = r.color;
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Update floating texts
         for (let i = floatingTexts.length - 1; i >= 0; i--) {
           const ft = floatingTexts[i];
           ft.y += ft.yVelocity;
-          if (ft.vx) ft.x += ft.vx;
           ft.life--;
-          ft.alpha = ft.life / ft.maxLife;
+          ft.alpha = ft.life / 40;
           
           if (ft.life <= 0) {
             floatingTexts.splice(i, 1);
@@ -1379,21 +1481,19 @@
           ctx.save();
           ctx.globalAlpha = ft.alpha;
           ctx.translate(ft.x, ft.y);
-          ctx.rotate(ft.angle);
+          ctx.rotate(ft.rot);
           ctx.scale(ft.scale, ft.scale);
-          
           ctx.fillStyle = ft.color;
-          ctx.shadowBlur = combo > 5 ? 12 : 5;
-          ctx.shadowColor = ft.color;
-          ctx.font = '900 1.1rem Outfit, Noto Sans KR';
+          ctx.font = 'black 900 1.1rem Outfit, Noto Sans KR';
           ctx.textAlign = 'center';
+          ctx.shadowBlur = 4;
+          ctx.shadowColor = ft.color;
           ctx.fillText(ft.text, 0, 0);
           ctx.restore();
         }
       }
       
-      // Restore Screen Shake
-      ctx.restore();
+      ctx.restore(); // Restore shake translate
     }
     
     // Start Loop
